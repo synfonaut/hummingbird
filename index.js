@@ -65,6 +65,10 @@ export default class Hummingbird {
         }
     }
 
+    async onblock() {
+        await this.crawl();
+    }
+
     isuptodate() {
         return false;
     }

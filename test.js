@@ -69,18 +69,42 @@ describe.only("hummingbird", function() {
                 h.disconnect();
                 done();
             };
-
         });
 
+        it("switches from crawling to listening back to crawling", function(done) {
+            const h = new Hummingbird({ peer: { host } });
+            h.connect();
+            assert.equal(h.state, Hummingbird.STATE.CONNECTING);
 
+            h._onconnect = h.onconnect;
+            h.onconnect = function() {
+                h._onconnect();
+                assert.equal(h.state, Hummingbird.STATE.CRAWLING);
+                h.isuptodate = function() { return true };
+            };
 
+            h._listen = h.listen;
+            let complete = false; // listen will call itself recursively if we don't add a complete check
+            h.listen = async function() {
+                if (!complete) {
+                    h._listen();
+                    assert.equal(h.state, Hummingbird.STATE.LISTENING);
+                    h.isuptodate = function() { return false }; // new block comes in
+                    h.onblock();
+                    assert.equal(h.state, Hummingbird.STATE.CRAWLING);
+
+                    h.isuptodate = function() { return true };
+
+                    complete = true;
+                    done();
+                    h.disconnect();
+                }
+            };
+        });
     });
 });
 
 
-// state
-//  crawling -> listening -> crawling
-//  listening
 // start
 //  b2p2p
 // disconnect
