@@ -4,12 +4,20 @@
   "description": "A Real-time Bitcoin Application Framework",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "./node_modules/.bin/mocha --require esm"
   },
   "keywords": [
     "bitcoin",
     "bsv"
   ],
   "author": "synfonaut",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "esm": "3.2.25",
+    "mocha": "6.2.2"
+  },
+  "dependencies": {
+    "b2p2p": "0.0.1",
+    "bsv": "1.0.0"
+  }
 }
