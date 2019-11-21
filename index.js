@@ -5,6 +5,7 @@ import bsv from "bsv"
 import RPCClient from "bitcoind-rpc"
 import txo from "txo"
 
+import * as tape from "./tape"
 import { sleep } from "./helpers"
 
 const messages = new Messages({ Block: bsv.Block, BlockHeader: bsv.BlockHeader, Transaction: bsv.Transaction, MerkleBlock: bsv.MerkleBlock });
@@ -19,9 +20,14 @@ const STATE = {
 export default class Hummingbird {
 
     constructor(config={}) {
-        this.config = config;
+        this.config = Object.assign({
+            "tapefile": "tape.txt",
+            "from": 609727,
+        }, config);
 
         if (!this.config.peer || !this.config.peer.host) { throw new Error(`expected peer.host in config`) }
+        if (!this.config.tapefile) { throw new Error(`expected tapefile in config`) }
+        if (!Number.isInteger(this.config.from)) { throw new Error(`expected from in config`) }
 
         this.state = STATE.DISCONNECTED;
         this.reconnect = (this.config.reconnect === undefined ? true : false);
@@ -81,8 +87,10 @@ export default class Hummingbird {
         });
 
         this.peer.on("tx", async (message) => {
-            const tx = await txo.fromTx(message.transaction);
-            await this.onmempool(tx);
+            if (this.state == STATE.LISTENING) {
+                const tx = await txo.fromTx(message.transaction);
+                await this.onmempool(tx);
+            }
         });
 
         this.peer.on("inv", (message) => {
@@ -130,28 +138,58 @@ export default class Hummingbird {
         await this.crawl();
     }
 
-    isuptodate() {
-        return false;
+    async curr() {
+        const height = await tape.get(this.config.tapefile);
+        if (height) {
+            return height;
+        } else {
+            return this.config.from - 1;
+        }
+    }
+
+    async height() {
+        return new Promise((resolve, reject) => {
+            this.rpc.getBlockchainInfo(async (err, res) => {
+                if (err) { reject(err) }
+                else { resolve(res.result.blocks) }
+            });
+        });
+    }
+
+    async isuptodate() {
+        return new Promise(async (resolve, reject) => {
+            const curr = await this.curr();
+            if (curr === (this.config.from-1)) {
+                resolve(false);
+            } else {
+                const height = await this.height();
+                resolve(curr >= height);
+            }
+        });
     }
 
     listen() {
         this.state = STATE.LISTENING;
         log(`listening`);
+        this.fetchmempool();
     }
 
     async crawl() {
         log(`crawling`);
 
-        if (this.isuptodate()) {
+        if (await this.isuptodate()) {
+            log(`done crawling`);
             this.listen();
         } else {
             this.state = STATE.CRAWLING;
 
             while (true) {
-                if (this.isuptodate()) {
+                if (await this.isuptodate()) {
                     log(`done crawling`);
                     break;
                 }
+
+                await this.process(await this.curr() + 1);
 
                 //log("waiting");
                 await sleep(250);
@@ -164,6 +202,18 @@ export default class Hummingbird {
     disconnect() {
         log(`disconnecting`);
         this.peer.disconnect();
+    }
+
+    async process(height) {
+        log(`processing block ${height}`);
+        const block = await this.fetch(height).catch(e => {
+            console.log("E", e);
+        });
+        if (block) {
+            const timestamp = Math.floor(Date.now() / 1000);
+            const logline = `${height} ${block.header.hash} ${block.header.prevHash} ${timestamp}`;
+            await tape.write(logline, this.config.tapefile);
+        }
     }
 
     fetch(height) {
