@@ -123,7 +123,6 @@ export default class Hummingbird {
 
     listen() {
         this.state = STATE.LISTENING;
-        console.log("LISTENING");
     }
 
     async crawl() {
@@ -165,6 +164,10 @@ export default class Hummingbird {
             });
         });
 
+    }
+
+    fetchmempool() {
+        this.peer.sendMessage(this.peer.messages.MemPool());
     }
 }
 

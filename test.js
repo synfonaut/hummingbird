@@ -9,7 +9,7 @@ const config = {
     peer: { host: "209.50.56.81" },
 };
 
-describe.only("hummingbird", function() {
+describe("hummingbird", function() {
     this.slow(1500);
 
     describe("state", function() {
@@ -226,12 +226,38 @@ describe.only("hummingbird", function() {
             }
             h.connect();
         });
+
+        it("refreshes mempool", function(done) {
+            this.timeout(15000);
+            // minimum needs to be low enough that normal mempool txs don't fill it up within timeout
+            // but low enough that mempool still has a shot even after a block
+            let minimum = 500, num = 0;
+
+            const h = new Hummingbird(config);
+            h.isuptodate = function() { return true };
+            let complete = false;
+            h.onmempool = function(tx) {
+                assert(tx);
+                assert(tx.tx.h);
+                assert(tx.in);
+                assert(tx.out);
+
+                num += 1;
+                if (!complete && num >= minimum) {
+                    complete = true;
+                    h.disconnect();
+                    done();
+                }
+            }
+
+            h._onconnect = h.onconnect;
+            h.onconnect = function() {
+                h._onconnect();
+                h.fetchmempool();
+            }
+
+            h.connect();
+        });
     });
 });
 
-//  b2p2p
-//  refreshes mempool
-//
-// onblock
-//  refreshmempool
-// onmempool
