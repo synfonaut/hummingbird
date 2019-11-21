@@ -1,3 +1,5 @@
+const log = require("debug")("hummingbird");
+
 const { Peer, Messages } = require("b2p2p");
 import bsv from "bsv"
 import RPCClient from "bitcoind-rpc"
@@ -18,10 +20,11 @@ export default class Hummingbird {
 
     constructor(config={}) {
         this.config = config;
+
         if (!this.config.peer || !this.config.peer.host) { throw new Error(`expected peer.host in config`) }
 
         this.state = STATE.DISCONNECTED;
-        this.reconnect = true;
+        this.reconnect = (this.config.reconnect === undefined ? true : false);
 
         const rpcconfig = Object.assign({}, {
             protocol: "http",
@@ -83,36 +86,47 @@ export default class Hummingbird {
         });
 
         this.peer.on("inv", (message) => {
-            //console.log("INV");
             this.peer.sendMessage(this.peer.messages.GetData(message.inventory))
         });
 
         this.peer.on("error", (message) => {
-            console.log("ERR", message);
+            log(`error ${message}`);
         });
+
+        log(`setup hummingbird`);
     }
 
     connect() {
+        log(`connect`);
         this.state = STATE.CONNECTING;
         this.peer.connect();
     }
 
     onconnect() {
+        log(`on connect`);
         this.ready();
         this.crawl();
     }
 
     ondisconnect() {
+        log(`on disconnect`);
         this.state = STATE.DISCONNECTED;
         if (this.reconnect) {
+            log(`reconnecting`);
             this.connect();
         }
     }
 
-    async onmempool() {
+    async onmempool(tx) {
+        //log(`onmempool ${tx.tx.h}`);
     }
 
-    async onblock() {
+    async onblock(block) {
+        if (block && block.header) {
+            log(`onblock ${block.header.height}`);
+        } else {
+            log(`onblock unknown`);
+        }
         await this.crawl();
     }
 
@@ -122,9 +136,12 @@ export default class Hummingbird {
 
     listen() {
         this.state = STATE.LISTENING;
+        log(`listening`);
     }
 
     async crawl() {
+        log(`crawling`);
+
         if (this.isuptodate()) {
             this.listen();
         } else {
@@ -132,11 +149,11 @@ export default class Hummingbird {
 
             while (true) {
                 if (this.isuptodate()) {
-                    //console.log("DONE CRAWLING");
+                    log(`done crawling`);
                     break;
                 }
 
-                //console.log("waiting");
+                //log("waiting");
                 await sleep(250);
             }
 
@@ -144,12 +161,13 @@ export default class Hummingbird {
         }
     }
 
-    disconnect(reconnect=false) {
-        this.reconnect = reconnect;
+    disconnect() {
+        log(`disconnecting`);
         this.peer.disconnect();
     }
 
     fetch(height) {
+        log(`fetching block ${height}`);
         return new Promise((resolve, reject) => {
             this.rpc.getBlockHash(height, async (err, res) => {
                 if (err) { return reject(err) }
@@ -166,6 +184,7 @@ export default class Hummingbird {
     }
 
     fetchmempool() {
+        log(`fetching mempool`);
         this.peer.sendMessage(this.peer.messages.MemPool());
     }
 }

@@ -4,7 +4,7 @@
   "description": "A Real-time Bitcoin Application Framework",
   "main": "index.js",
   "scripts": {
-    "test": "./node_modules/.bin/mocha --require esm"
+    "test": "DEBUG=hummingbird* ./node_modules/.bin/mocha --require esm --bail"
   },
   "keywords": [
     "bitcoin",
@@ -20,6 +20,7 @@
     "b2p2p": "0.0.1",
     "bitcoind-rpc": "0.8.1",
     "bsv": "1.0.0",
+    "debug": "4.1.1",
     "read-last-lines": "1.7.1",
     "txo": "0.0.16"
   }

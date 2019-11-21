@@ -7,6 +7,7 @@ import fs from "fs"
 const config = {
     rpc: { host: "209.50.56.81", user: "root", pass: "bitcoin" },
     peer: { host: "209.50.56.81" },
+    reconnect: false,
 };
 
 describe("hummingbird", function() {
@@ -185,7 +186,7 @@ describe("hummingbird", function() {
     describe("peer", function() {
         this.timeout(7500);
 
-        it("automatically reconnects", function(done) {
+        it("automatically reconnect", function(done) {
             const h = new Hummingbird(config);
             h.connect();
             assert.equal(h.state, Hummingbird.STATE.CONNECTING);
@@ -200,9 +201,11 @@ describe("hummingbird", function() {
                 if (times == 2) {
                     h.isuptodate = function() { return true };
                     done();
+                    h.reconnect = false;
                     h.disconnect();
-                } else {
-                    h.disconnect(true);
+                } else if (times == 1) {
+                    h.reconnect = true;
+                    h.disconnect();
                 }
 
             };
