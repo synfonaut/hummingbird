@@ -2,24 +2,27 @@ const assert = require("assert");
 
 import Hummingbird from "./index"
 
-const host = "209.50.56.81";
+const config = {
+    rpc: { host: "209.50.56.81", user: "root", pass: "bitcoin" },
+    peer: { host: "209.50.56.81" },
+};
 
 describe.only("hummingbird", function() {
     describe("state", function() {
         it("initialize disconnected", function() {
-            const h = new Hummingbird({ peer: { host } });
+            const h = new Hummingbird(config);
             assert.equal(h.state, Hummingbird.STATE.DISCONNECTED);
         });
 
         it("switches to connecting on connect", function() {
-            const h = new Hummingbird({ peer: { host } });
+            const h = new Hummingbird(config);
             h.connect();
             assert.equal(h.state, Hummingbird.STATE.CONNECTING);
             h.disconnect();
         });
 
         it("switches to crawling after connect", function(done) {
-            const h = new Hummingbird({ peer: { host } });
+            const h = new Hummingbird(config);
             h.connect();
             assert.equal(h.state, Hummingbird.STATE.CONNECTING);
 
@@ -34,7 +37,7 @@ describe.only("hummingbird", function() {
         });
 
         it("disconnects", function(done) {
-            const h = new Hummingbird({ peer: { host } });
+            const h = new Hummingbird(config);
             h.connect();
             assert.equal(h.state, Hummingbird.STATE.CONNECTING);
 
@@ -55,7 +58,7 @@ describe.only("hummingbird", function() {
         });
 
         it("switches to listening after crawl", function(done) {
-            const h = new Hummingbird({ peer: { host } });
+            const h = new Hummingbird(config);
             h.connect();
             assert.equal(h.state, Hummingbird.STATE.CONNECTING);
 
@@ -72,7 +75,7 @@ describe.only("hummingbird", function() {
         });
 
         it("switches from crawling to listening back to crawling", function(done) {
-            const h = new Hummingbird({ peer: { host } });
+            const h = new Hummingbird(config);
             h.connect();
             assert.equal(h.state, Hummingbird.STATE.CONNECTING);
 
@@ -102,18 +105,38 @@ describe.only("hummingbird", function() {
             };
         });
     });
+
+    describe("crawl", function() {
+        this.timeout(15000);
+
+        it("fetches blocks", function(done) {
+            const h = new Hummingbird(config);
+            h.isuptodate = function() { return true };
+            h.ready(async function() {
+                const block = await h.fetch(608811);
+                assert(block.header.height, 608811);
+                assert(block.txs.length, 2072);
+                assert(block.txs[0].tx.h, "2086e72ce325fe377e18ee2c57f1ab5350457116a153d204354262cb131a10bc");
+                assert(block.txs[2071].tx.h, "5090fb68d0f5b445050dc3eb5a58fbbca00fc433c4067fb439257a4922b6a9fe");
+
+                h.disconnect();
+                done();
+            });
+            h.connect();
+        });
+    });
+
+
+
 });
 
+// new block
+// tape position
 
-// start
+
 //  b2p2p
 // disconnect
 //  reconnect
 // onblock
-//  crawl
 //  refreshmempool
 // onmempool
-// check
-// crawl
-//  rpc
-//  tape

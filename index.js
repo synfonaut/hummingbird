@@ -1,5 +1,7 @@
 const { Peer, Messages } = require("b2p2p");
 import bsv from "bsv"
+import RPCClient from "bitcoind-rpc"
+import txo from "txo"
 
 import { sleep } from "./helpers"
 
@@ -20,31 +22,54 @@ export default class Hummingbird {
 
         this.state = STATE.DISCONNECTED;
 
+        const rpcconfig = Object.assign({}, {
+            protocol: "http",
+            host: "127.0.0.1",
+            port: "8332",
+        }, this.config.rpc);
+
+        this.readyfn = function() {};
+        this.blockreq = null;
+
+        this.rpc = new RPCClient(rpcconfig);
 
         this.peer = new Peer({ host: this.config.peer.host, messages });
 
         this.peer.on("ready", () => {
-            //console.log("CONNECTED");
             this.onconnect();
-            //const message = this.peer.messages.MemPool();
-            //this.peer.sendMessage(message);
         });
 
         this.peer.on("disconnect", () => {
             this.ondisconnect();
         });
 
-        this.peer.on("tx", async function(message) {
+        this.peer.on("block", async (message) => {
+            if (!this.blockreq) { return }
+
+            const header = Object.assign({}, message.block.header.toObject(), {
+                height: this.blockreq.height,
+            });
+
+            const txs = await Promise.all(message.block.transactions.map(async (tx) => {
+                return await txo.fromTx(tx);
+            }));
+
+            this.blockreq.resolve({ header, txs });
+
+            this.blockreq = null;
+        });
+
+        this.peer.on("tx", async (message) => {
             //const tx = await txo.fromTx(String(message.transaction));
             //console.log("TX", tx.tx.h);
         });
 
-        this.peer.on("inv", function(message) {
+        this.peer.on("inv", (message) => {
             //console.log("INV");
             //this.peer.sendMessage(peer.messages.GetData(message.inventory))
         });
 
-        this.peer.on("error", function(message) {
+        this.peer.on("error", (message) => {
             console.log("ERR", message);
         });
     }
@@ -55,6 +80,7 @@ export default class Hummingbird {
     }
 
     onconnect() {
+        this.readyfn();
         this.crawl();
     }
 
@@ -77,6 +103,10 @@ export default class Hummingbird {
         this.state = STATE.LISTENING;
     }
 
+    ready(fn) {
+        this.readyfn = fn;
+    }
+
     async crawl() {
         if (this.isuptodate()) {
             this.listen();
@@ -89,6 +119,7 @@ export default class Hummingbird {
                     break;
                 }
 
+                //console.log("waiting");
                 await sleep(250);
             }
 
@@ -98,6 +129,22 @@ export default class Hummingbird {
 
     disconnect() {
         this.peer.disconnect();
+    }
+
+    fetch(height) {
+        return new Promise((resolve, reject) => {
+            this.rpc.getBlockHash(height, async (err, res) => {
+                if (err) { return reject(err) }
+                const hash = res.result;
+                if (this.blockreq) {
+                    throw new Error("block fetch can only be called one at a time");
+                } else {
+                    this.blockreq = { resolve, reject, height };
+                    this.peer.sendMessage(this.peer.messages.GetData.forBlock(hash))
+                }
+            });
+        });
+
     }
 }
 
