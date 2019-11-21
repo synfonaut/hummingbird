@@ -1,6 +1,8 @@
 const assert = require("assert");
 
 import Hummingbird from "./index"
+import * as tape from "./tape"
+import fs from "fs"
 
 const config = {
     rpc: { host: "209.50.56.81", user: "root", pass: "bitcoin" },
@@ -8,6 +10,8 @@ const config = {
 };
 
 describe.only("hummingbird", function() {
+    this.slow(1500);
+
     describe("state", function() {
         it("initialize disconnected", function() {
             const h = new Hummingbird(config);
@@ -75,6 +79,8 @@ describe.only("hummingbird", function() {
         });
 
         it("switches from crawling to listening back to crawling", function(done) {
+            this.slow(2500);
+
             const h = new Hummingbird(config);
             h.connect();
             assert.equal(h.state, Hummingbird.STATE.CONNECTING);
@@ -108,6 +114,7 @@ describe.only("hummingbird", function() {
 
     describe("crawl", function() {
         this.timeout(15000);
+        this.slow(5000);
 
         it("fetches blocks", function(done) {
             const h = new Hummingbird(config);
@@ -148,15 +155,33 @@ describe.only("hummingbird", function() {
             }
             h.connect();
         });
-
     });
 
+    describe("tape", function() {
+        const tapefile = "tape_test.txt"
+        const cleanup = function() { try { fs.unlinkSync(tapefile) } catch (e) {} }
 
+        beforeEach(cleanup);
+        after(cleanup);
 
+        it("starts empty", async function() {
+            assert.equal(await tape.get(tapefile), null);
+        });
+
+        it("writes", async function() {
+            assert(await tape.write("609693 000000000000000003a8d6a69e65643f3dbdf00dd36e46509ef5f6a090537f9d 00000000000000000466925f21e1ad6f52ad31ff1572de70f7b1a4734e562ac9 1574304292", tapefile));
+            assert.equal(await tape.get(tapefile), 609693);
+        });
+
+        it("writes multiple", async function() {
+            assert(await tape.write("609693 000000000000000003a8d6a69e65643f3dbdf00dd36e46509ef5f6a090537f9d 00000000000000000466925f21e1ad6f52ad31ff1572de70f7b1a4734e562ac9 1574304292", tapefile));
+            assert.equal(await tape.get(tapefile), 609693);
+
+            assert(await tape.write("609694 000000000000000000ed115ae01fea88351e8e9501cd2e957f00720856172b30 000000000000000003a8d6a69e65643f3dbdf00dd36e46509ef5f6a090537f9d 1574304458", tapefile));
+            assert.equal(await tape.get(tapefile), 609694);
+        });
+    });
 });
-
-// tape position
-
 
 //  b2p2p
 // disconnect
