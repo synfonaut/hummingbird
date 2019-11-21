@@ -105,7 +105,6 @@ export default class Hummingbird {
     ondisconnect() {
         this.state = STATE.DISCONNECTED;
         if (this.reconnect) {
-            console.log("RECONNECT");
             this.connect();
         }
     }
