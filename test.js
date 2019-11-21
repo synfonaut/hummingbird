@@ -111,26 +111,50 @@ describe.only("hummingbird", function() {
 
         it("fetches blocks", function(done) {
             const h = new Hummingbird(config);
-            h.isuptodate = function() { return true };
-            h.ready(async function() {
+            h.ready = async function() {
                 const block = await h.fetch(608811);
                 assert(block.header.height, 608811);
                 assert(block.txs.length, 2072);
                 assert(block.txs[0].tx.h, "2086e72ce325fe377e18ee2c57f1ab5350457116a153d204354262cb131a10bc");
                 assert(block.txs[2071].tx.h, "5090fb68d0f5b445050dc3eb5a58fbbca00fc433c4067fb439257a4922b6a9fe");
 
+                h.isuptodate = function() { return true };
                 h.disconnect();
                 done();
-            });
+            };
             h.connect();
         });
+
+        it("listens for blocks", function(done) {
+            const h = new Hummingbird(config);
+            h.isuptodate = function() { return true };
+            h.ready = async function() {
+                const block = await h.fetch(608811);
+                assert(block.header.height, 608811);
+                assert(block.txs.length, 2072);
+                assert(block.txs[0].tx.h, "2086e72ce325fe377e18ee2c57f1ab5350457116a153d204354262cb131a10bc");
+                assert(block.txs[2071].tx.h, "5090fb68d0f5b445050dc3eb5a58fbbca00fc433c4067fb439257a4922b6a9fe");
+            };
+
+            h._onblock = h.onblock;
+            h.onblock = function(block) {
+                h._onblock(block);
+                assert(block.txs.length, 2072);
+                assert(block.txs[0].tx.h, "2086e72ce325fe377e18ee2c57f1ab5350457116a153d204354262cb131a10bc");
+                assert(block.txs[2071].tx.h, "5090fb68d0f5b445050dc3eb5a58fbbca00fc433c4067fb439257a4922b6a9fe");
+                assert(block.header.height, 608811);
+                h.disconnect();
+                done();
+            }
+            h.connect();
+        });
+
     });
 
 
 
 });
 
-// new block
 // tape position
 
 

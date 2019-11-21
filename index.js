@@ -28,7 +28,7 @@ export default class Hummingbird {
             port: "8332",
         }, this.config.rpc);
 
-        this.readyfn = function() {};
+        this.ready = function() {};
         this.blockreq = null;
 
         this.rpc = new RPCClient(rpcconfig);
@@ -44,19 +44,36 @@ export default class Hummingbird {
         });
 
         this.peer.on("block", async (message) => {
-            if (!this.blockreq) { return }
+            // fetch
+            if (this.state === STATE.CRAWLING && this.blockreq) {
+                const header = Object.assign({}, message.block.header.toObject(), {
+                    height: this.blockreq.height,
+                });
 
-            const header = Object.assign({}, message.block.header.toObject(), {
-                height: this.blockreq.height,
-            });
+                const txs = await Promise.all(message.block.transactions.map(async (tx) => {
+                    return await txo.fromTx(tx);
+                }));
 
-            const txs = await Promise.all(message.block.transactions.map(async (tx) => {
-                return await txo.fromTx(tx);
-            }));
+                this.blockreq.resolve({ header, txs });
 
-            this.blockreq.resolve({ header, txs });
+                this.blockreq = null;
 
-            this.blockreq = null;
+            // new block
+            } else if (this.state == STATE.LISTENING) {
+                this.rpc.getBlockHeader(message.block.header.hash, async (err, res) => {
+                    if (err) { throw new Error(`error while fetching height for new block: ${e}`) }
+
+                    const header = Object.assign({}, message.block.header.toObject(), {
+                        height: res.result.height,
+                    });
+
+                    const txs = await Promise.all(message.block.transactions.map(async (tx) => {
+                        return await txo.fromTx(tx);
+                    }));
+
+                    await this.onblock({ header, txs });
+                });
+            }
         });
 
         this.peer.on("tx", async (message) => {
@@ -80,7 +97,7 @@ export default class Hummingbird {
     }
 
     onconnect() {
-        this.readyfn();
+        this.ready();
         this.crawl();
     }
 
@@ -101,10 +118,6 @@ export default class Hummingbird {
 
     listen() {
         this.state = STATE.LISTENING;
-    }
-
-    ready(fn) {
-        this.readyfn = fn;
     }
 
     async crawl() {
@@ -150,13 +163,3 @@ export default class Hummingbird {
 
 Hummingbird.STATE = STATE;
 
-
-
-/*
-const hummingbird = new Hummingbird({
-    rpc: { host: "209.50.56.81", user: "root", pass: "bitcoin" },
-    peer: { host: "209.50.56.81" },
-});
-
-console.log(hummingbird);
-*/
