@@ -110,10 +110,10 @@ export default class Hummingbird {
         this.peer.connect();
     }
 
-    onconnect() {
+    async onconnect() {
         log(`on connect`);
         this.ready();
-        this.crawl();
+        await this.crawl();
     }
 
     ondisconnect() {
@@ -219,10 +219,14 @@ export default class Hummingbird {
     fetch(height) {
         log(`fetching block ${height}`);
         return new Promise((resolve, reject) => {
+
+            this.state = STATE.CRAWLING;
+
             this.rpc.getBlockHash(height, async (err, res) => {
                 if (err) { return reject(err) }
                 const hash = res.result;
                 if (this.blockreq) {
+                    console.log("BLOCK", this.blockreq);
                     throw new Error("block fetch can only be called one at a time");
                 } else {
                     this.blockreq = { resolve, reject, height };
