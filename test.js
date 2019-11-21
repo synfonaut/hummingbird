@@ -181,11 +181,57 @@ describe.only("hummingbird", function() {
             assert.equal(await tape.get(tapefile), 609694);
         });
     });
+
+    describe("peer", function() {
+        this.timeout(7500);
+
+        it("automatically reconnects", function(done) {
+            const h = new Hummingbird(config);
+            h.connect();
+            assert.equal(h.state, Hummingbird.STATE.CONNECTING);
+
+            let times = 0;
+
+            h._onconnect = h.onconnect;
+            h.onconnect = function() {
+                h._onconnect();
+                times += 1;
+
+                if (times == 2) {
+                    h.isuptodate = function() { return true };
+                    done();
+                    h.disconnect();
+                } else {
+                    h.disconnect(true);
+                }
+
+            };
+        });
+
+        it("listens for mempool txs", function(done) {
+            this.timeout(20000);
+            const h = new Hummingbird(config);
+            h.isuptodate = function() { return true };
+            let complete = false;
+            h.onmempool = function(tx) {
+                if (!complete) {
+                    complete = true;
+                    assert(tx);
+                    assert(tx.tx.h);
+                    assert(tx.in);
+                    assert(tx.out);
+                    h.disconnect();
+                    done();
+                }
+            }
+            h.connect();
+        });
+    });
 });
 
 //  b2p2p
-// disconnect
-//  reconnect
+//  refreshes mempool
+//
 // onblock
 //  refreshmempool
 // onmempool

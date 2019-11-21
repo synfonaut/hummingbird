@@ -21,6 +21,7 @@ export default class Hummingbird {
         if (!this.config.peer || !this.config.peer.host) { throw new Error(`expected peer.host in config`) }
 
         this.state = STATE.DISCONNECTED;
+        this.reconnect = true;
 
         const rpcconfig = Object.assign({}, {
             protocol: "http",
@@ -77,13 +78,13 @@ export default class Hummingbird {
         });
 
         this.peer.on("tx", async (message) => {
-            //const tx = await txo.fromTx(String(message.transaction));
-            //console.log("TX", tx.tx.h);
+            const tx = await txo.fromTx(message.transaction);
+            await this.onmempool(tx);
         });
 
         this.peer.on("inv", (message) => {
             //console.log("INV");
-            //this.peer.sendMessage(peer.messages.GetData(message.inventory))
+            this.peer.sendMessage(this.peer.messages.GetData(message.inventory))
         });
 
         this.peer.on("error", (message) => {
@@ -101,11 +102,15 @@ export default class Hummingbird {
         this.crawl();
     }
 
-    ondisconnect(reconnect=false) {
+    ondisconnect() {
         this.state = STATE.DISCONNECTED;
-        if (reconnect) {
+        if (this.reconnect) {
+            console.log("RECONNECT");
             this.connect();
         }
+    }
+
+    async onmempool() {
     }
 
     async onblock() {
@@ -118,6 +123,7 @@ export default class Hummingbird {
 
     listen() {
         this.state = STATE.LISTENING;
+        console.log("LISTENING");
     }
 
     async crawl() {
@@ -140,7 +146,8 @@ export default class Hummingbird {
         }
     }
 
-    disconnect() {
+    disconnect(reconnect=false) {
+        this.reconnect = reconnect;
         this.peer.disconnect();
     }
 
