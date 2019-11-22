@@ -49,8 +49,8 @@ export default class Hummingbird {
             this.onconnect();
         });
 
-        this.peer.on("disconnect", () => {
-            this.ondisconnect();
+        this.peer.on("disconnect", async () => {
+            await this.ondisconnect();
         });
 
         this.peer.on("block", async (message) => {
@@ -90,13 +90,18 @@ export default class Hummingbird {
 
     // ACTIONS
 
+    start() {
+        log(`start`);
+        this.connect();
+    }
+
     connect() {
         log(`connect`);
         this.state = STATE.CONNECTING;
         this.peer.connect();
     }
 
-    async listen() {
+    listen() {
         this.state = STATE.LISTENING;
         log(`listening`);
     }
@@ -170,7 +175,7 @@ export default class Hummingbird {
         await this.crawl();
     }
 
-    ondisconnect() {
+    async ondisconnect() {
         log(`on disconnect`);
         this.state = STATE.DISCONNECTED;
         if (this.reconnect) {

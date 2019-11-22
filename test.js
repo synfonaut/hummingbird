@@ -1,5 +1,7 @@
 const assert = require("assert");
 
+import txo from "txo"
+
 import Hummingbird from "./index"
 import * as tape from "./tape"
 import fs from "fs"
