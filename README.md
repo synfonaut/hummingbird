@@ -4,8 +4,3 @@
 
 Hummingbird helps you build real-time Bitcoin applications. Optimizing for speed and stability, Hummingbird handles the lower levels between your app and Bitcoin, ensuring your user experiences are always fast and reliable.
 
-
-onmempool can be called with same txid multiple times (can we fix this?)
-
-
-* verification and retries built in
