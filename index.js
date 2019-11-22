@@ -22,7 +22,7 @@ export default class Hummingbird {
     constructor(config={}) {
         this.config = Object.assign({
             "tapefile": "tape.txt",
-            "from": 609727,
+            "from": 0,
         }, config);
 
         if (!this.config.peer || !this.config.peer.host) { throw new Error(`expected peer.host in config`) }
@@ -54,34 +54,16 @@ export default class Hummingbird {
         });
 
         this.peer.on("block", async (message) => {
-            // fetch
             if (this.state === STATE.CRAWLING && this.blockreq) {
-                const header = Object.assign({}, message.block.header.toObject(), {
-                    height: this.blockreq.height,
-                });
-
-                const txs = await Promise.all(message.block.transactions.map(async (tx) => {
-                    return await txo.fromTx(tx);
-                }));
-
-                this.blockreq.resolve({ header, txs });
-
+                const block = await this.parseBlock(message.block, this.blockreq.height);
+                this.blockreq.resolve(block);
                 this.blockreq = null;
-
-            // new block
             } else if (this.state == STATE.LISTENING) {
                 this.rpc.getBlockHeader(message.block.header.hash, async (err, res) => {
                     if (err) { throw new Error(`error while fetching height for new block: ${e}`) }
-
-                    const header = Object.assign({}, message.block.header.toObject(), {
-                        height: res.result.height,
-                    });
-
-                    const txs = await Promise.all(message.block.transactions.map(async (tx) => {
-                        return await txo.fromTx(tx);
-                    }));
-
-                    await this.onblock({ header, txs });
+                    const block = await this.parseBlock(message.block, res.result.height);
+                    await this.onblock(block);
+                    await this.crawl();
                 });
             }
         });
@@ -104,11 +86,76 @@ export default class Hummingbird {
         log(`setup hummingbird`);
     }
 
+    // ACTIONS
+
     connect() {
         log(`connect`);
         this.state = STATE.CONNECTING;
         this.peer.connect();
     }
+
+    listen() {
+        this.state = STATE.LISTENING;
+        log(`listening`);
+        this.fetchmempool();
+    }
+
+    async crawl() {
+        log(`crawling`);
+
+        if (await this.isuptodate()) {
+            log(`done crawling`);
+            this.listen();
+        } else {
+            this.state = STATE.CRAWLING;
+
+            while (true) {
+                if (await this.isuptodate()) {
+                    log(`done crawling`);
+                    break;
+                }
+
+                await this.handle(await this.curr() + 1);
+
+                //log("waiting");
+                await sleep(250);
+            }
+
+            this.listen();
+        }
+    }
+
+    disconnect() {
+        log(`disconnecting`);
+        this.peer.disconnect();
+    }
+
+    fetchmempool() {
+        log(`fetching mempool`);
+        this.peer.sendMessage(this.peer.messages.MemPool());
+    }
+
+    async handle(height) {
+
+        return new Promise(async (resolve, reject) => {
+            log(`handling block ${height}`);
+            const block = await this.fetch(height).catch(e => {
+                console.log("E", e);
+            });
+
+            if (block) {
+                const timestamp = Math.floor(Date.now() / 1000);
+                const logline = `${height} ${block.header.hash} ${block.header.prevHash} ${timestamp}`;
+                await tape.write(logline, this.config.tapefile);
+                await this.onblock(block);
+                resolve();
+            } else {
+                resolve();
+            }
+        });
+    }
+
+    // EVENTS
 
     async onconnect() {
         log(`on connect`);
@@ -135,8 +182,10 @@ export default class Hummingbird {
         } else {
             log(`onblock unknown`);
         }
-        await this.crawl();
     }
+
+
+    // HELPERS
 
     async curr() {
         const height = await tape.get(this.config.tapefile);
@@ -168,54 +217,6 @@ export default class Hummingbird {
         });
     }
 
-    listen() {
-        this.state = STATE.LISTENING;
-        log(`listening`);
-        this.fetchmempool();
-    }
-
-    async crawl() {
-        log(`crawling`);
-
-        if (await this.isuptodate()) {
-            log(`done crawling`);
-            this.listen();
-        } else {
-            this.state = STATE.CRAWLING;
-
-            while (true) {
-                if (await this.isuptodate()) {
-                    log(`done crawling`);
-                    break;
-                }
-
-                await this.process(await this.curr() + 1);
-
-                //log("waiting");
-                await sleep(250);
-            }
-
-            this.listen();
-        }
-    }
-
-    disconnect() {
-        log(`disconnecting`);
-        this.peer.disconnect();
-    }
-
-    async process(height) {
-        log(`processing block ${height}`);
-        const block = await this.fetch(height).catch(e => {
-            console.log("E", e);
-        });
-        if (block) {
-            const timestamp = Math.floor(Date.now() / 1000);
-            const logline = `${height} ${block.header.hash} ${block.header.prevHash} ${timestamp}`;
-            await tape.write(logline, this.config.tapefile);
-        }
-    }
-
     fetch(height) {
         log(`fetching block ${height}`);
         return new Promise((resolve, reject) => {
@@ -226,21 +227,32 @@ export default class Hummingbird {
                 if (err) { return reject(err) }
                 const hash = res.result;
                 if (this.blockreq) {
-                    console.log("BLOCK", this.blockreq);
-                    throw new Error("block fetch can only be called one at a time");
+                    //console.log("BLOCK", this.blockreq);
+                    reject("block fetch can only be called one at a time");
                 } else {
                     this.blockreq = { resolve, reject, height };
                     this.peer.sendMessage(this.peer.messages.GetData.forBlock(hash))
                 }
             });
         });
-
     }
 
-    fetchmempool() {
-        log(`fetching mempool`);
-        this.peer.sendMessage(this.peer.messages.MemPool());
+    async parseBlock(block, height) {
+        const header = Object.assign( block.header.toObject(), { height });
+        const txs = await Promise.all(block.transactions.map(async (tx) => {
+            return Object.assign(await txo.fromTx(tx), {
+                blk: {
+                    i: header.height,
+                    h: header.hash,
+                    t: header.time,
+                }
+            });
+        }));
+
+        log(`fetched block ${header.height}`);
+        return { header, txs };
     }
+
 }
 
 Hummingbird.STATE = STATE;

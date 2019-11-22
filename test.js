@@ -27,11 +27,13 @@ describe("hummingbird", function() {
         });
 
         it("switches to crawling after connect", function(done) {
-            this.timeout(5000);
+            this.timeout(10000);
 
             const h = new Hummingbird(config);
             h.connect();
             h.process = function() {};
+            h.isuptodate = function() { return false };
+
             h._onconnect = h.onconnect;
             h.onconnect = async function() {
                 assert.equal(h.state, Hummingbird.STATE.CONNECTING);
@@ -39,7 +41,7 @@ describe("hummingbird", function() {
 
                 setTimeout(function() {
                     h.isuptodate = function() { return true };
-                }, 200);
+                }, 250);
 
                 let interval = setInterval(function() {
                     if (h.state === Hummingbird.STATE.CRAWLING) {
@@ -48,7 +50,7 @@ describe("hummingbird", function() {
                         h.disconnect();
                         done();
                     }
-                }, 250);
+                }, 100);
             };
         });
 
@@ -103,6 +105,11 @@ describe("hummingbird", function() {
                 assert(block.txs[0].tx.h, "2086e72ce325fe377e18ee2c57f1ab5350457116a153d204354262cb131a10bc");
                 assert(block.txs[2071].tx.h, "5090fb68d0f5b445050dc3eb5a58fbbca00fc433c4067fb439257a4922b6a9fe");
 
+                assert(block.txs[0].blk);
+                assert.equal(block.txs[0].blk.i, 608811);
+                assert.equal(block.txs[0].blk.t, 1573765073);
+                assert.equal(block.txs[0].blk.h, "0000000000000000034a9d2b738eecce3e9afd8a07bc89ca03023c99f366708f");
+
                 h.disconnect();
                 done();
             };
@@ -110,8 +117,28 @@ describe("hummingbird", function() {
         });
 
         it("listens for blocks", function(done) {
+            this.timeout(25000);
+            this.slow(10000);
+
             const h = new Hummingbird(config);
             h.isuptodate = function() { return true };
+            h._onblock = h.onblock;
+            h.onblock = function(block) {
+                h._onblock(block);
+                assert(block.txs.length, 2072);
+                assert(block.txs[0].tx.h, "2086e72ce325fe377e18ee2c57f1ab5350457116a153d204354262cb131a10bc");
+                assert(block.txs[2071].tx.h, "5090fb68d0f5b445050dc3eb5a58fbbca00fc433c4067fb439257a4922b6a9fe");
+                assert(block.header.height, 608811);
+
+                assert(block.txs[0].blk);
+                assert.equal(block.txs[0].blk.i, 608811);
+                assert.equal(block.txs[0].blk.t, 1573765073);
+                assert.equal(block.txs[0].blk.h, "0000000000000000034a9d2b738eecce3e9afd8a07bc89ca03023c99f366708f");
+
+                h.disconnect();
+                done();
+            }
+
             h.ready = async function() {
                 const block = await h.fetch(608811);
                 assert(block.header.height, 608811);
@@ -120,16 +147,6 @@ describe("hummingbird", function() {
                 assert(block.txs[2071].tx.h, "5090fb68d0f5b445050dc3eb5a58fbbca00fc433c4067fb439257a4922b6a9fe");
             };
 
-            h._onblock = h.onblock;
-            h.onblock = function(block) {
-                h._onblock(block);
-                assert(block.txs.length, 2072);
-                assert(block.txs[0].tx.h, "2086e72ce325fe377e18ee2c57f1ab5350457116a153d204354262cb131a10bc");
-                assert(block.txs[2071].tx.h, "5090fb68d0f5b445050dc3eb5a58fbbca00fc433c4067fb439257a4922b6a9fe");
-                assert(block.header.height, 608811);
-                h.disconnect();
-                done();
-            }
             h.connect();
         });
     });
@@ -168,6 +185,7 @@ describe("hummingbird", function() {
             assert.equal(h.state, Hummingbird.STATE.CONNECTING);
 
             let times = 0;
+            h.isuptodate = function() { return false };
 
             h._onconnect = h.onconnect;
             h.onconnect = function() {
@@ -175,11 +193,13 @@ describe("hummingbird", function() {
                 times += 1;
 
                 if (times == 2) {
-                    h.isuptodate = function() { return true };
                     done();
                     h.reconnect = false;
                     h.disconnect();
                 } else if (times == 1) {
+                    setTimeout(function() {
+                        h.isuptodate = function() { return true };
+                    }, 1000);
                     h.reconnect = true;
                     h.disconnect();
                 }

@@ -21,6 +21,7 @@
     "bitcoind-rpc": "0.8.1",
     "bsv": "1.0.0",
     "debug": "4.1.1",
+    "mongodb": "3.3.4",
     "read-last-lines": "1.7.1",
     "txo": "0.0.16"
   }
