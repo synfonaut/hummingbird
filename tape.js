@@ -7,9 +7,13 @@ export function get(file) {
             const lines = str.split("\n").filter(line => !!line);
             const last = lines.pop();
             const line = last.split(" ");
-            if (line.length !== 4) { throw new Error("expected tape to have 4 elements") }
-            const height = Number(line[0]);
-            resolve(height);
+            if (line.length !== 5) { throw new Error("expected tape to have 4 elements") }
+            if (line[0] === "BLOCK") {
+                const height = Number(line[1]);
+                resolve(height);
+            } else {
+                resolve(null);
+            }
         }).catch(e => {
             resolve(null);
         });

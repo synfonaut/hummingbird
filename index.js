@@ -56,13 +56,15 @@ export default class Hummingbird {
         this.peer.on("block", async (message) => {
             if (this.state === STATE.CRAWLING && this.blockreq) {
                 const block = await this.parseBlock(message.block, this.blockreq.height);
+                const diff = (Date.now() - this.blockreq.start) / 1000;
+                log(`fetched block ${block.header.height} in ${diff} seconds`);
                 this.blockreq.resolve(block);
                 this.blockreq = null;
             } else if (this.state == STATE.LISTENING) {
                 this.rpc.getBlockHeader(message.block.header.hash, async (err, res) => {
                     if (err) { throw new Error(`error while fetching height for new block: ${e}`) }
                     const block = await this.parseBlock(message.block, res.result.height);
-                    await this.onblock(block);
+                    await this.handleblock(block);
                     await this.crawl();
                 });
             }
@@ -94,28 +96,27 @@ export default class Hummingbird {
         this.peer.connect();
     }
 
-    listen() {
+    async listen() {
         this.state = STATE.LISTENING;
         log(`listening`);
-        this.fetchmempool();
     }
 
     async crawl() {
         log(`crawling`);
 
         if (await this.isuptodate()) {
-            log(`done crawling`);
+            this.onrealtime();
             this.listen();
         } else {
             this.state = STATE.CRAWLING;
 
             while (true) {
                 if (await this.isuptodate()) {
-                    log(`done crawling`);
+                    this.onrealtime();
                     break;
                 }
 
-                await this.handle(await this.curr() + 1);
+                await this.crawlblock(await this.curr() + 1);
 
                 //log("waiting");
                 await sleep(250);
@@ -135,24 +136,30 @@ export default class Hummingbird {
         this.peer.sendMessage(this.peer.messages.MemPool());
     }
 
-    async handle(height) {
-
+    async crawlblock(height) {
         return new Promise(async (resolve, reject) => {
             log(`handling block ${height}`);
             const block = await this.fetch(height).catch(e => {
-                console.log("E", e);
+                log(`fetch error ${e}`);
             });
 
             if (block) {
-                const timestamp = Math.floor(Date.now() / 1000);
-                const logline = `${height} ${block.header.hash} ${block.header.prevHash} ${timestamp}`;
-                await tape.write(logline, this.config.tapefile);
-                await this.onblock(block);
+                await this.handleblock(block);
                 resolve();
             } else {
                 resolve();
             }
         });
+    }
+
+    async handleblock(block) {
+        await this.preblock(block);
+        await this.onblock(block);
+        await this.postblock(block);
+
+        const timestamp = Math.floor(Date.now() / 1000);
+        const logline = `BLOCK ${block.header.height} ${block.header.hash} ${block.header.prevHash} ${timestamp}`;
+        await tape.write(logline, this.config.tapefile);
     }
 
     // EVENTS
@@ -182,6 +189,22 @@ export default class Hummingbird {
         } else {
             log(`onblock unknown`);
         }
+
+        log(`processing block ${block.header.height} with ${block.txs.length} txs`);
+        const start = Date.now();
+        for (const tx of block.txs) {
+            await this.ontransaction(tx);
+        }
+
+        let diff = Date.now() - start;
+        log(`finished processing block ${block.header.height} with ${block.txs.length} txs in ${diff/1000} seconds`);
+    }
+
+    async preblock(block) { }
+    async postblock(block) { }
+
+    async onrealtime() {
+        log(`realtime`);
     }
 
 
@@ -230,7 +253,7 @@ export default class Hummingbird {
                     //console.log("BLOCK", this.blockreq);
                     reject("block fetch can only be called one at a time");
                 } else {
-                    this.blockreq = { resolve, reject, height };
+                    this.blockreq = { resolve, reject, height, start: Date.now() };
                     this.peer.sendMessage(this.peer.messages.GetData.forBlock(hash))
                 }
             });
@@ -249,7 +272,6 @@ export default class Hummingbird {
             });
         }));
 
-        log(`fetched block ${header.height}`);
         return { header, txs };
     }
 

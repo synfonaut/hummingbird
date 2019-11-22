@@ -50,16 +50,8 @@ h.onmempool = async function(tx) {
     await h.ontransaction(tx);
 }
 
-h._onblock = h.onblock;
-h.onblock = async function(block) {
-    h._onblock(block);
-    log(`processing block ${block.header.height} with ${block.txs.length} txs`);
-    for (const tx of block.txs) {
-        await h.ontransaction(tx);
-    }
-
-    log(`finished processing block ${block.header.height} with ${block.txs.length} txs`);
-
+h.onrealtime = async function(block) {
+    log(`realtime`);
     log(`refreshing mempool`);
     await h.db.collection("u").deleteMany({});
     await h.fetchmempool();
