@@ -200,6 +200,10 @@ export default class Hummingbird {
         log(`finished processing block ${block.header.height} with ${block.txs.length} txs in ${diff/1000} seconds`);
     }
 
+    async ontransaction(tx) {
+        //log(`tx ${tx.tx.h}`);
+    }
+
     async preblock(block) { }
     async postblock(block) { }
 
