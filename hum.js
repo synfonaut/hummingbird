@@ -53,6 +53,5 @@ h.onrealtime = async function(block) {
     await h.fetchmempool();
 }
 
-h.connect();
+h.start();
 
-// TODO: Block processing is missing header
