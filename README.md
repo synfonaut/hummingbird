@@ -7,5 +7,4 @@ Hummingbird helps you build real-time Bitcoin applications. Optimizing for speed
 real time
 light weight
 stable, automatically reconnects
-
-balancer
+state machines

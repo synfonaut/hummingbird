@@ -273,36 +273,113 @@ describe("hummingbird", function() {
             await h.ontransaction(tx);
         });
 
-        it.only("single balancer", async function() {
+        it("single state machine", async function() {
             const tx = await txo.fromTx(txhash);
 
+            let num = 0;
             class StateMachine {
-                constructor() {
-                    this.handled = false;
-                }
+                ontransaction() { num += 1 }
+            }
 
+            assert(tx);
+
+            assert.equal(tx.tx.h, "3e410bfba6732687369b3e961030c8bf88793be99bb297247bef64fec141a04e");
+            const h = new Hummingbird(Object.assign({}, config, { state_machines: [new StateMachine()] }));
+
+            assert.equal(num, 0);
+            await h.onmempool(tx);
+            assert.equal(num, 1);
+
+        });
+
+        it("multiple state machines", async function() {
+            const tx = await txo.fromTx(txhash);
+
+            let num = 0;
+            class StateMachine {
+                ontransaction() { num += 1 }
+            }
+
+            assert(tx);
+
+            assert.equal(tx.tx.h, "3e410bfba6732687369b3e961030c8bf88793be99bb297247bef64fec141a04e");
+            const h = new Hummingbird(Object.assign({}, config, { state_machines: [
+                new StateMachine(),
+                new StateMachine(),
+            ]}));
+
+            assert.equal(num, 0);
+            await h.onmempool(tx);
+            assert.equal(num, 2);
+
+        });
+
+        it("many state machines", async function() {
+            const tx = await txo.fromTx(txhash);
+
+            let num = 0;
+            class StateMachine {
+                ontransaction() { num += 1 }
+            }
+
+            assert(tx);
+
+            assert.equal(tx.tx.h, "3e410bfba6732687369b3e961030c8bf88793be99bb297247bef64fec141a04e");
+            const h = new Hummingbird(Object.assign({}, config, { state_machines: [
+                new StateMachine(),
+                new StateMachine(),
+                new StateMachine(),
+                new StateMachine(),
+                new StateMachine(),
+                new StateMachine(),
+                new StateMachine(),
+                new StateMachine(),
+                new StateMachine(),
+                new StateMachine(),
+            ]}));
+
+            assert.equal(num, 0);
+            await h.onmempool(tx);
+            await h.onmempool(tx);
+            await h.onmempool(tx);
+            await h.onmempool(tx);
+            await h.onmempool(tx);
+            await h.onmempool(tx);
+            await h.onmempool(tx);
+            await h.onmempool(tx);
+            await h.onmempool(tx);
+            await h.onmempool(tx);
+            assert.equal(num, 100);
+
+        });
+
+        it("stops on error", async function() {
+
+            const tx = await txo.fromTx(txhash);
+
+            let num = 0;
+            class StateMachine {
                 ontransaction() {
-                    this.handled = true;
+                    throw new Error("bzz wrong");
+                    num += 1;
                 }
             }
 
             assert(tx);
 
             assert.equal(tx.tx.h, "3e410bfba6732687369b3e961030c8bf88793be99bb297247bef64fec141a04e");
-            const sm = new StateMachine();
+            const h = new Hummingbird(Object.assign({}, config, { state_machines: [new StateMachine()] }));
 
-            const h = new Hummingbird(Object.assign({}, config, {
-                balance: [sm],
-            }));
-
-            assert(!sm.handled);
-            await h.ontransaction(tx);
-            assert(sm.handled);
-
+            assert.equal(num, 0);
+            try {
+                await h.onmempool(tx);
+                assert.fail("expected error");
+            } catch (e) {
+                assert.equal(e.message, "bzz wrong");
+                assert.equal(num, 0);
+            }
         });
-
-// multiple balancers
-// balancer error
     });
+
 });
 

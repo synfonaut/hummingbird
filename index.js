@@ -23,12 +23,17 @@ export default class Hummingbird {
         this.config = Object.assign({
             "tapefile": "tape.txt",
             "from": 0,
+            "state_machines": [],
         }, config);
 
         if (!this.config.peer || !this.config.peer.host) { throw new Error(`expected peer.host in config`) }
         if (!this.config.tapefile) { throw new Error(`expected tapefile in config`) }
         if (!Number.isInteger(this.config.from)) { throw new Error(`expected from in config`) }
 
+        this.state_machines = this.config.state_machines.map(state_machine => {
+            state_machine.log = log.extend(state_machine.constructor.name.toLowerCase());
+            return state_machine;
+        });
         this.state = STATE.DISCONNECTED;
         this.reconnect = (this.config.reconnect === undefined ? true : false);
 
@@ -185,7 +190,10 @@ export default class Hummingbird {
     }
 
     async onmempool(tx) {
-        //log(`onmempool ${tx.tx.h}`);
+        for (const state_machine of this.state_machines) {
+            await state_machine.ontransaction(tx);
+        }
+        await this.ontransaction(tx);
     }
 
     async onblock(block) {
@@ -196,13 +204,23 @@ export default class Hummingbird {
         }
 
         log(`processing block ${block.header.height} with ${block.txs.length} txs`);
-        const start = Date.now();
+        const blockstart = Date.now();
         for (const tx of block.txs) {
             await this.ontransaction(tx);
         }
 
-        let diff = Date.now() - start;
-        log(`finished processing block ${block.header.height} with ${block.txs.length} txs in ${diff/1000} seconds`);
+        for (const state_machine of this.state_machines) {
+            state_machine.log(`processing block ${block.header.height} with ${block.txs.length} txs`);
+            let start = Date.now();
+            for (const tx of block.txs) {
+                await state_machine.ontransaction(tx);
+            }
+            let diff = Date.now() - start;
+            state_machine.log(`finished processing block ${block.header.height} with ${block.txs.length} txs in ${diff/1000} seconds`);
+        }
+
+        let blockdiff = Date.now() - blockstart;
+        log(`finished processing block ${block.header.height} with ${block.txs.length} txs in ${blockdiff/1000} seconds`);
     }
 
     async ontransaction(tx) {

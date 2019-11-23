@@ -46,10 +46,6 @@ h.ready = async function() {
     h.db = await connect("hummingbird");
 }
 
-h.onmempool = async function(tx) {
-    await h.ontransaction(tx);
-}
-
 h.onrealtime = async function(block) {
     log(`realtime`);
     log(`refreshing mempool`);
