@@ -7,8 +7,8 @@ import * as tape from "./tape"
 import fs from "fs"
 
 const config = {
-    rpc: { host: "209.50.56.81", user: "root", pass: "bitcoin" },
-    peer: { host: "209.50.56.81" },
+    rpc: { host: "127.0.0.1", user: "root", pass: "bitcoin" },
+    peer: { host: "127.0.0.1" },
     reconnect: false,
 };
 
@@ -259,6 +259,50 @@ describe("hummingbird", function() {
 
             h.connect();
         });
+    });
+
+    describe("balancers", function() {
+        const txhash = "01000000031e3d45c8201002d0b7fde932d038c7305fece87a5a935f92b0d6d1b66b91e18c010000006a4730440220708b56fb58bbaa18a4bea6087eedc5a371c8d64a3a4b843041f78630354c132c0220151f3e98d5b902b1af3e083c9d8c90c4eb11e8c8ebf42d3fce038a83818fa6ed41210380df51e589a247265826380eb270792c1b401bb9be7897d83d22fa1a1d09ebb7ffffffff6b95e1b467be93811f9b40a6c6bc9017a50f4eabca0efac9a6a7e1a8c0c4b717010000006a473044022033f875b2c257bb9c04c7a26293d626e1fd0ca1790d53a39da42f5b6007e89d7c02203260a274bca14dea98f726e65d38fe4740ee016dbc8eac9efaf320828cb1843e412103d290fbd5576e16da567be901c8088ac5da9a5d5d816c80df69eca96034f73116ffffffff50dc2b2c744c096e1a09ba898087f0aa82ffbd24d1bfdedf8daf9f966789fb2c010000006b483045022100f4bfbd05a222132eb1896d9a1c83eeee4115ded0b3d82a9984d101703139c2d30220377913b3fe7a75208d0419c189f4fe452ad942b8ca285198dcc27161f18973034121032bfd1463f20f8fd431a8bdf0c81a3635ae345fba57e4f79b1f26ddbe3aadce24ffffffff02164c0400000000001976a914a78b9ede98117ffa2319bc9e6aa5609b80bcb95488ac011f0b00000000001976a91462202eebc76f59988915c8b89793a0d41fadbd3488ac00000000";
+
+        it("none", async function() {
+            const tx = await txo.fromTx(txhash);
+            assert(tx);
+
+            assert.equal(tx.tx.h, "3e410bfba6732687369b3e961030c8bf88793be99bb297247bef64fec141a04e");
+            const h = new Hummingbird(config);
+            await h.ontransaction(tx);
+        });
+
+        it.only("single balancer", async function() {
+            const tx = await txo.fromTx(txhash);
+
+            class StateMachine {
+                constructor() {
+                    this.handled = false;
+                }
+
+                ontransaction() {
+                    this.handled = true;
+                }
+            }
+
+            assert(tx);
+
+            assert.equal(tx.tx.h, "3e410bfba6732687369b3e961030c8bf88793be99bb297247bef64fec141a04e");
+            const sm = new StateMachine();
+
+            const h = new Hummingbird(Object.assign({}, config, {
+                balance: [sm],
+            }));
+
+            assert(!sm.handled);
+            await h.ontransaction(tx);
+            assert(sm.handled);
+
+        });
+
+// multiple balancers
+// balancer error
     });
 });
 

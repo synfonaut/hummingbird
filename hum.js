@@ -4,8 +4,8 @@ import Hummingbird from "./index"
 import { connect, isdupeerror } from "./helpers"
 
 const config = {
-    rpc: { host: "209.50.56.81", user: "root", pass: "bitcoin" },
-    peer: { host: "209.50.56.81" },
+    rpc: { host: "127.0.0.1", user: "root", pass: "bitcoin" },
+    peer: { host: "127.0.0.1" },
     from: 609844
 };
 
