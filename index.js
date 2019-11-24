@@ -95,8 +95,17 @@ export default class Hummingbird {
 
     // ACTIONS
 
-    start() {
+    async start() {
         log(`start`);
+
+        for (const state_machine of this.state_machines) {
+            if (state_machine.onstart) {
+                await state_machine.onstart();
+            }
+        }
+
+        await this.onstart();
+
         this.connect();
     }
 
