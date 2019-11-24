@@ -270,7 +270,7 @@ describe("hummingbird", function() {
 
             assert.equal(tx.tx.h, "3e410bfba6732687369b3e961030c8bf88793be99bb297247bef64fec141a04e");
             const h = new Hummingbird(config);
-            await h.ontransaction(tx);
+            await h.onmempool(tx);
         });
 
         it("single state machine", async function() {

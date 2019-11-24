@@ -172,9 +172,7 @@ export default class Hummingbird {
     }
 
     async handleblock(block) {
-        await this.preblock(block);
         await this.onblock(block);
-        await this.postblock(block);
 
         const timestamp = Math.floor(Date.now() / 1000);
         const logline = `BLOCK ${block.header.height} ${block.header.hash} ${block.header.prevHash} ${timestamp}`;
@@ -202,7 +200,6 @@ export default class Hummingbird {
         for (const state_machine of this.state_machines) {
             await state_machine.ontransaction(tx);
         }
-        await this.ontransaction(tx);
     }
 
     async onblock(block) {
@@ -214,15 +211,16 @@ export default class Hummingbird {
 
         log(`processing block ${block.header.height} with ${block.txs.length} txs`);
         const blockstart = Date.now();
-        for (const tx of block.txs) {
-            await this.ontransaction(tx);
-        }
 
         for (const state_machine of this.state_machines) {
             state_machine.log(`processing block ${block.header.height} with ${block.txs.length} txs`);
             let start = Date.now();
-            for (const tx of block.txs) {
-                await state_machine.ontransaction(tx);
+            if (state_machine.ontransactions) {
+                await state_machine.ontransactions(block.txs, block);
+            } else {
+                for (const tx of block.txs) {
+                    await state_machine.ontransaction(tx);
+                }
             }
             let diff = Date.now() - start;
             state_machine.log(`finished processing block ${block.header.height} with ${block.txs.length} txs in ${diff/1000} seconds`);
@@ -232,17 +230,8 @@ export default class Hummingbird {
         log(`finished processing block ${block.header.height} with ${block.txs.length} txs in ${blockdiff/1000} seconds`);
     }
 
-    async ontransaction(tx) {
-        //log(`tx ${tx.tx.h}`);
-    }
-
-    async preblock(block) { }
-    async postblock(block) { }
-
-    async onrealtime() {
-        log(`realtime`);
-    }
-
+    async onstart() { }
+    async onrealtime() { log(`realtime`) }
 
     // HELPERS
 
