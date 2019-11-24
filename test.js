@@ -229,10 +229,10 @@ describe("hummingbird", function() {
         });
 
         it("refreshes mempool", function(done) {
-            this.timeout(15000);
+            this.timeout(10000);
             // minimum needs to be low enough that normal mempool txs don't fill it up within timeout
             // but low enough that mempool still has a shot even after a block
-            let minimum = 500, num = 0;
+            let minimum = 100, num = 0;
 
             const h = new Hummingbird(config);
             h.isuptodate = function() { return true };
