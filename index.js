@@ -147,7 +147,9 @@ export default class Hummingbird {
 
     disconnect() {
         log(`disconnecting`);
-        this.peer.disconnect();
+        try {
+            this.peer.disconnect();
+        } catch (e) {}
     }
 
     fetchmempool() {
