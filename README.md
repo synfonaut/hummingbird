@@ -57,4 +57,6 @@ Here's an example of a simple Hummingbird application
 
 Created by [@synfonaut](https://twitter.com/synfonaut)
 
+Inspired by [Planaria](https://planaria.network) by [@unwriter](https://twitter.com/_unwriter)
+
 Hummingbird artwork created by [Painterly Dots](https://www.painterlydots.com/products/hummingbird-watercolor-print-illustrations-art-print-wedding-gift-wall-art-poster-giclee-wall-decor-art-home-decor-wall-hanging-item-240)
