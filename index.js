@@ -235,7 +235,16 @@ export default class Hummingbird {
     }
 
     async onstart() { }
-    async onrealtime() { log(`realtime`) }
+    async onrealtime() {
+        log(`realtime`);
+        for (const state_machine of this.state_machines) {
+            if (state_machine.onrealtime) {
+                await state_machine.onrealtime();
+            }
+        }
+
+        await this.fetchmempool();
+    }
 
     // HELPERS
 
