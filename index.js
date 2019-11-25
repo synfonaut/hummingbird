@@ -46,6 +46,8 @@ export default class Hummingbird {
         this.ready = function() {};
         this.blockreq = null;
 
+        this.blockheight = 0;
+
         this.rpc = new RPCClient(rpcconfig);
 
         this.peer = new Peer({ host: this.config.peer.host, messages });
@@ -159,7 +161,7 @@ export default class Hummingbird {
 
     async crawlblock(height) {
         return new Promise(async (resolve, reject) => {
-            log(`handling block ${height}`);
+            log(`handling block ${height} (${this.blockheight - height} behind)`);
             const block = await this.fetch(height).catch(e => {
                 log(`fetch error ${e}`);
             });
@@ -250,7 +252,10 @@ export default class Hummingbird {
         return new Promise((resolve, reject) => {
             this.rpc.getBlockchainInfo(async (err, res) => {
                 if (err) { reject(err) }
-                else { resolve(res.result.blocks) }
+                else {
+                    this.blockheight = res.result.blocks;
+                    resolve(this.blockheight);
+                }
             });
         });
     }
