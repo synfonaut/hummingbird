@@ -1,8 +1,10 @@
-# Hummingbird
+![hummingbird](./hummingbird.png)
 
-> A Real-time Bitcoin Application Framework
+
 
 Hummingbird helps you build real-time Bitcoin applications. Optimizing for speed and stability, Hummingbird handles the lower levels between your app and Bitcoin, ensuring your user experiences are always fast and reliable.
+
+
 
 ## Example
 
@@ -51,3 +53,10 @@ Here's an example of a simple Hummingbird application
     h.start();
 ```
 
+
+
+## Author
+
+Created by [@synfonaut](https://twitter.com/synfonaut)
+
+Hummingbird artwork created by [Painterly Dots](https://www.painterlydots.com/products/hummingbird-watercolor-print-illustrations-art-print-wedding-gift-wall-art-poster-giclee-wall-decor-art-home-decor-wall-hanging-item-240)
