@@ -41,11 +41,8 @@ Here's an example of a simple Hummingbird application
     }
 
     h.onrealtime = async function(block) {
-        log(`realtime`);
-
         log(`refreshing mempool`);
         await h.db.collection("u").deleteMany({});
-        await h.fetchmempool();
     }
 
     h.start();
