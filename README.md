@@ -8,6 +8,7 @@ Hummingbird helps you build real-time Bitcoin applications. Optimizing for speed
 
 Here's an example of a simple Hummingbird application
 
+```javascript
     const log = require("debug")("hummingbird");
 
     import Hummingbird from "./index"
@@ -48,5 +49,5 @@ Here's an example of a simple Hummingbird application
     }
 
     h.start();
-
+```
 
