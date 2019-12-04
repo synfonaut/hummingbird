@@ -201,6 +201,10 @@ export default class Hummingbird {
     }
 
     async onmempool(tx) {
+        await this.ontransaction(tx);
+    }
+
+    async ontransaction(tx) {
         for (const state_machine of this.state_machines) {
             await state_machine.ontransaction(tx);
         }
