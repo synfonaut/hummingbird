@@ -26,6 +26,6 @@
     "debug": "4.1.1",
     "mongodb": "3.3.4",
     "read-last-lines": "1.7.1",
-    "txo": "0.0.16"
+    "txo": "github:synfonaut/txo"
   }
 }
