@@ -3,7 +3,7 @@ import ReadLastLines from "read-last-lines"
 
 export function get(file) {
     return new Promise((resolve, reject) => {
-        ReadLastLines.read(file).then(str => {
+        ReadLastLines.read(file, 10).then(str => {
             const lines = str.split("\n").filter(line => !!line);
             const last = lines.pop();
             const line = last.split(" ");
