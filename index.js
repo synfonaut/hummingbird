@@ -161,8 +161,7 @@ export default class Hummingbird {
 
     async crawlblock(height) {
         return new Promise(async (resolve, reject) => {
-            const diff = this.blockheight - height;
-            if (diff < 0) { diff = "unknown" }
+            const diff = (this.blockheight > 0 ? this.blockheight - height : "unknown");
             log(`handling block ${height} (${diff} behind)`);
             const block = await this.fetch(height).catch(e => {
                 log(`fetch error ${e}`);
