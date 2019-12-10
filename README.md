@@ -62,7 +62,7 @@ You can stack as many `state_machines` in a Hummingbird instance as you want, an
 
 `ontransaction` is called for every transaction with [TXO](https://github.com/interplanaria/txo) transaction object.
 
-`ontransactions` can be overridden, which allows custom block processing—useful for processing block transactions in a custom order.
+`ontransactions` can be overridden, which allows custom block processing—useful for processing block transactions in a custom order or performing validation logic.
 
 Hummingbird uses a similar `tape.txt` file to keep track of processing, progress can easily be snapshotted, sped up or reversed
 
