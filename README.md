@@ -34,21 +34,21 @@ const hummingbird = new Hummingbird({
 });
 
 class ApplicationStateMachine {
-	async onstart() {
+    async onstart() {
         this.db = await connect();
-	}
-	
-	async ontransaction(tx) {
+    }
+
+    async ontransaction(tx) {
         await this.db.collection("transactions").insertOne(tx);
-	}
-	
-	async onrealtime() {
-		console.log("block processing has caught up");
-	}
-	
-	async reset() {
-		// useful for testing
-	}
+    }
+
+    async onrealtime() {
+        console.log("block processing has caught up");
+    }
+
+    async reset() {
+        // useful for testing
+    }
 }
 
 hummingbird.start();
