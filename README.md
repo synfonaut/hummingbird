@@ -132,6 +132,7 @@ if (require.main === module) {
 Hummingbird has a test suite built on Mocha. If you'd like to contribute or found a bug, please check the test suite for compatibility.
 
     git clone git@github.com:synfonaut/hummingbird.git
+    cd hummingbird
     npm install
     npm test
 
