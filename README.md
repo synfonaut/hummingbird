@@ -25,21 +25,21 @@ import Hummingbird from "hummingbird-bitcoin"
 import { connect } from "./helpers"
 
 const hummingbird = new Hummingbird({
-  rpc: { host: "127.0.0.1", user: "root", pass: "bitcoin" },
-  peer: { host: "127.0.0.1" },
-  from: 600000,
-  state_machines: [
-    new ApplicationStateMachine(),
-  ],
+    rpc: { host: "127.0.0.1", user: "root", pass: "bitcoin" },
+    peer: { host: "127.0.0.1" },
+    from: 600000,
+    state_machines: [
+        new ApplicationStateMachine(),
+    ],
 });
 
 class ApplicationStateMachine {
 	async onstart() {
-    this.db = await connect();
+        this.db = await connect();
 	}
 	
 	async ontransaction(tx) {
-    await this.db.collection("transactions").insertOne(tx);
+        await this.db.collection("transactions").insertOne(tx);
 	}
 	
 	async onrealtime() {
