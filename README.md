@@ -64,7 +64,7 @@ You can stack as many `state_machines` in a Hummingbird instance as you want, an
 
 `ontransactions` can be overridden, which allows custom block processing—useful for processing block transactions in a custom order or performing validation logic.
 
-Hummingbird uses a similar `tape.txt` file to keep track of processing, progress can easily be snapshotted, sped up or reversed
+Hummingbird uses a `tape.txt` file similar to [Neon Planaria](https://neon.planaria.network/) to keep track of processing—you can easily fast forward, rewind or snapshot crawling progress.
 
 ```
 BLOCK 612452 00000000000000000431d9ea6e33e204223fea64d34cc86ba8c2c5cd0d614c1f 000000000000000004f7ecc52435d31376f5e901d905252d582a0b1a7cbbf577 1575956822
@@ -76,7 +76,7 @@ BLOCK 612456 000000000000000005f9447e5d27dad12348076bfec72f50c2864202f1a5c062 00
 
 
 
-## Helpers
+## Scripts
 
 Hummingbird has a number of useful helpers that can be used in testing or scripts. Here's an example how you might create a "patcher", a script that can process a block at any height in the blockchain:
 
@@ -129,13 +129,15 @@ if (require.main === module) {
 
 ## Test
 
+Hummingbird has a test suite built on Mocha. If you'd like to contribute or found a bug, please check the test suite for compatibility.
+
     git clone git@github.com:synfonaut/hummingbird.git
     npm install
     npm test
 
 ## Author
 
-Created by [@synfonaut](https://twitter.com/synfonaut)
+Created by [@synfonaut](https://twitter.com/synfonaut) while building [Bit.sv](https://bit.sv).
 
-Inspired by [Planaria](https://planaria.network) by [@unwriter](https://twitter.com/_unwriter)
+Inspired by [Neon Planaria](https://neon.planaria.network) from [@unwriter](https://twitter.com/_unwriter)
 
