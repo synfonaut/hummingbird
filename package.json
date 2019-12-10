@@ -1,5 +1,5 @@
 {
-  "name": "hummingbird",
+  "name": "hummingbird-bitcoin",
   "version": "0.0.1",
   "description": "A Real-time Bitcoin Application Framework",
   "main": "index.js",
@@ -10,8 +10,8 @@
     "bitcoin",
     "bsv"
   ],
-  "author": "synfonaut",
-  "license": "UNLICENSED",
+  "author": "synfonaut <synfonaut@protonmail.com>",
+  "license": "LICENSE.md",
   "devDependencies": {
     "esm": "3.2.25",
     "mocha": "6.2.2"
