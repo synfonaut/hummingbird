@@ -92,6 +92,7 @@ describe("hummingbird", function() {
                 done();
             };
         });
+
     });
 
     describe("crawl", function() {
@@ -505,6 +506,104 @@ describe("hummingbird", function() {
 
 
             hum.start();
+        });
+    });
+
+    describe("mempool mode", function() {
+        it("doesn't crawl in mempool mode", function(done) {
+            this.timeout(30000);
+
+            const h = new Hummingbird(Object.assign({}, config, {
+                mode: Hummingbird.MODE.MEMPOOL,
+            }));
+
+            h.crawl = async function() {
+                throw new Error("invalid crawl block");
+            };
+
+            h.height = async function() {
+                return 612601;
+            }
+
+            h.curr = async function() {
+                return 612601;
+            }
+
+            h.listen = async function() {
+                h.disconnect();
+                done();
+            };
+
+           h.start();
+        });
+
+        it("listens until block chain catches up", function(done) {
+            this.timeout(30000);
+
+            const h = new Hummingbird(Object.assign({}, config, {
+                mode: Hummingbird.MODE.MEMPOOL,
+            }));
+
+            let curr = 612600;
+
+            h.crawl = async function() {
+                throw new Error("invalid crawl block");
+            };
+
+            h.height = async function() {
+                return 612601;
+            }
+
+            h.curr = async function() {
+                return curr;
+            }
+
+            h.listen = async function() {
+                h.disconnect();
+                done();
+            };
+
+           h.start();
+
+            setTimeout(function() {
+                curr += 1;
+            }, 1000);
+        });
+
+    });
+
+    describe("block mode", function() {
+        it("doesn't wait in block mode", function(done) {
+            this.timeout(30000);
+
+            const h = new Hummingbird(Object.assign({}, config, {
+                mode: Hummingbird.MODE.BLOCK,
+            }));
+
+            let curr = 612600;
+
+            h.wait = async function() {
+                throw new Error("invalid wait in block mode");
+            };
+
+            h.height = async function() {
+                return 612601;
+            }
+
+            h.curr = async function() {
+                return curr;
+            }
+
+            h.listen = async function() {
+                h.disconnect();
+                done();
+            };
+
+            setTimeout(function() {
+                curr += 1;
+            }, 300);
+
+           h.start();
         });
     });
 });

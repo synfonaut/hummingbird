@@ -17,6 +17,12 @@ const STATE = {
     LISTENING: "LISTENING",
 };
 
+const MODE = {
+    BOTH: "BOTH",
+    MEMPOOL: "MEMPOOL",
+    BLOCK: "BLOCK",
+};
+
 export default class Hummingbird {
 
     constructor(config={}) {
@@ -24,6 +30,7 @@ export default class Hummingbird {
             "tapefile": "tape.txt",
             "from": 0,
             "state_machines": [],
+            "mode": MODE.BOTH,
         }, config);
 
         if (!this.config.peer || !this.config.peer.host) { throw new Error(`expected peer.host in config`) }
@@ -35,6 +42,7 @@ export default class Hummingbird {
             return state_machine;
         });
         this.state = STATE.DISCONNECTED;
+        this.mode = this.config.mode;
         this.reconnect = (this.config.reconnect === undefined ? true : false);
 
         const rpcconfig = Object.assign({}, {
@@ -48,11 +56,8 @@ export default class Hummingbird {
 
         this.rpc = new RPCClient(rpcconfig);
 
+        this.currheight = 0;
         this.blockheight = 0;
-        (async () => {
-            await this.height();
-            log(`latest block height ${this.blockheight}`);
-        })();
 
         this.peer = new Peer({ host: this.config.peer.host, messages });
 
@@ -65,24 +70,32 @@ export default class Hummingbird {
         });
 
         this.peer.on("block", async (message) => {
-            if (this.state === STATE.CRAWLING && this.blockreq) {
-                const block = await this.parseBlock(message.block, this.blockreq.height);
-                const diff = (Date.now() - this.blockreq.start) / 1000;
-                log(`fetched block ${block.header.height} in ${diff} seconds`);
-                this.blockreq.resolve(block);
-                this.blockreq = null;
-            } else if (this.state == STATE.LISTENING) {
+            if (this.mode == MODE.MEMPOOL) {
                 this.rpc.getBlockHeader(message.block.header.hash, async (err, res) => {
                     if (err) { throw new Error(`error while fetching height for new block: ${e}`) }
-                    const block = await this.parseBlock(message.block, res.result.height);
-                    await this.handleblock(block);
-                    await this.crawl();
+                    this.blockheight = res.result.height;
                 });
+            } else {
+                if (this.state === STATE.CRAWLING && this.blockreq) {
+                    const block = await this.parseBlock(message.block, this.blockreq.height);
+                    const diff = (Date.now() - this.blockreq.start) / 1000;
+                    log(`fetched block ${block.header.height} in ${diff} seconds`);
+                    this.blockreq.resolve(block);
+                    this.blockreq = null;
+                } else if (this.state == STATE.LISTENING) {
+                    this.rpc.getBlockHeader(message.block.header.hash, async (err, res) => {
+                        if (err) { throw new Error(`error while fetching height for new block: ${e}`) }
+                        this.blockheight = res.result.height;
+                        const block = await this.parseBlock(message.block, res.result.height);
+                        await this.handleblock(block);
+                        await this.crawl();
+                    });
+                }
             }
         });
 
         this.peer.on("tx", async (message) => {
-            if (this.state == STATE.LISTENING || this.blockheight === (await this.curr())) {
+            if (this.state == STATE.LISTENING) {
                 const tx = await txo.fromTx(message.transaction);
                 await this.onmempool(tx);
             }
@@ -191,12 +204,28 @@ export default class Hummingbird {
         await tape.write(logline, this.config.tapefile);
     }
 
+    async wait() {
+        const curr = await this.curr();
+        const height = await this.height();
+        if (curr === height) {
+            this.listen();
+        } else {
+            log(`waiting for realtime ${height-curr} behind ${height}`);
+            setTimeout(this.wait.bind(this), 10000);
+        }
+    }
+
     // EVENTS
 
     async onconnect() {
         log(`on connect`);
         this.ready();
-        await this.crawl();
+
+        if (this.mode == MODE.MEMPOOL) {
+            this.wait();
+        } else {
+            this.crawl();
+        }
     }
 
     async ondisconnect() {
@@ -267,12 +296,13 @@ export default class Hummingbird {
     // HELPERS
 
     async curr() {
-        const height = await tape.get(this.config.tapefile);
-        if (height) {
-            return height;
-        } else {
-            return this.config.from - 1;
+        let height = await tape.get(this.config.tapefile);
+        if (!height) {
+            height = this.config.from - 1;
         }
+
+        this.currheight = height;
+        return this.currheight;
     }
 
     async height() {
@@ -336,4 +366,5 @@ export default class Hummingbird {
 }
 
 Hummingbird.STATE = STATE;
+Hummingbird.MODE = MODE;
 
