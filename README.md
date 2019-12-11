@@ -136,6 +136,16 @@ Hummingbird has a test suite built on Mocha. If you'd like to contribute or foun
     npm install
     npm test
 
+## Ideas for Hummingbird
+
+- Add Bitcoin testing helpers
+- Add block validation
+- Add patching script
+- Write to tape.txt in PATCH mode for one tape
+- Add state_machine.matches(tx) to formalize logic
+- Application push notifications
+- Get rid of LISTENING state...always be listening just ignore if older than far enough behind block limit
+
 ## Author
 
 Created by [@synfonaut](https://twitter.com/synfonaut) while building [Bit.sv](https://bit.sv).
