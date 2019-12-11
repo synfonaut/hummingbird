@@ -77,20 +77,27 @@ describe("hummingbird", function() {
         });
 
         it("switches to listening after crawl", function(done) {
-            const h = new Hummingbird(config);
-            h.connect();
-            assert.equal(h.state, Hummingbird.STATE.CONNECTING);
+            (async function() {
+                const h = new Hummingbird(config);
 
-            // forcing is up to date should skip crawling step
-            h.isuptodate = function() { return true };
+                // forcing is up to date should skip crawling step
+                h.isuptodate = function() { return true };
 
-            h._onconnect = h.onconnect;
-            h.onconnect = async function() {
-                await h._onconnect();
-                assert.equal(h.state, Hummingbird.STATE.LISTENING);
-                h.disconnect();
-                done();
-            };
+                h._onconnect = h.onconnect;
+                h.onconnect = async function() {
+                    await h._onconnect();
+
+                    setTimeout(function() {
+                        assert.equal(h.state, Hummingbird.STATE.LISTENING);
+                        h.reconnect = false;
+                        h.disconnect();
+                        done();
+                    }, 300);
+                };
+
+                await h.start();
+                assert.equal(h.state, Hummingbird.STATE.CONNECTING);
+            })();
         });
 
     });
@@ -180,7 +187,7 @@ describe("hummingbird", function() {
     });
 
     describe("peer", function() {
-        this.timeout(7500);
+        this.timeout(1500);
 
         it("automatically reconnect", function(done) {
             const h = new Hummingbird(config);

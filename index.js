@@ -41,8 +41,12 @@ export default class Hummingbird {
             state_machine.log = log.extend(state_machine.constructor.name.toLowerCase());
             return state_machine;
         });
+
         this.state = STATE.DISCONNECTED;
-        this.mode = this.config.mode;
+
+        this.mode = this.config.mode.toUpperCase();
+        if (!MODE[this.mode]) { throw new Error(`unexpected mode ${this.mode}`) }
+
         this.reconnect = (this.config.reconnect === undefined ? true : false);
 
         const rpcconfig = Object.assign({}, {
@@ -95,9 +99,11 @@ export default class Hummingbird {
         });
 
         this.peer.on("tx", async (message) => {
-            if (this.state == STATE.LISTENING) {
-                const tx = await txo.fromTx(message.transaction);
-                await this.onmempool(tx);
+            if (this.mode == MODE.MEMPOOL || this.mode == MODE.BOTH) {
+                if (this.state == STATE.LISTENING) {
+                    const tx = await txo.fromTx(message.transaction);
+                    await this.onmempool(tx);
+                }
             }
         });
 
@@ -143,14 +149,14 @@ export default class Hummingbird {
         log(`crawling`);
 
         if (await this.isuptodate()) {
-            this.onrealtime();
+            await this.onrealtime();
             this.listen();
         } else {
             this.state = STATE.CRAWLING;
 
             while (true) {
                 if (await this.isuptodate()) {
-                    this.onrealtime();
+                    await this.onrealtime();
                     break;
                 }
 
@@ -208,6 +214,7 @@ export default class Hummingbird {
         const curr = await this.curr();
         const height = await this.height();
         if (curr === height) {
+            await this.onrealtime();
             this.listen();
         } else {
             log(`waiting for realtime ${height-curr} behind ${height}`);
@@ -290,7 +297,9 @@ export default class Hummingbird {
             }
         }
 
-        await this.fetchmempool();
+        if (this.mode == MODE.MEMPOOL || this.mode == MODE.BOTH) {
+            await this.fetchmempool();
+        }
     }
 
     // HELPERS
