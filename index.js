@@ -46,9 +46,13 @@ export default class Hummingbird {
         this.ready = function() {};
         this.blockreq = null;
 
-        this.blockheight = 0;
-
         this.rpc = new RPCClient(rpcconfig);
+
+        this.blockheight = 0;
+        (async () => {
+            await this.height();
+            log(`latest block height ${this.blockheight}`);
+        })();
 
         this.peer = new Peer({ host: this.config.peer.host, messages });
 
@@ -78,7 +82,7 @@ export default class Hummingbird {
         });
 
         this.peer.on("tx", async (message) => {
-            if (this.state == STATE.LISTENING) {
+            if (this.state == STATE.LISTENING || this.blockheight === (await this.curr())) {
                 const tx = await txo.fromTx(message.transaction);
                 await this.onmempool(tx);
             }
@@ -205,7 +209,13 @@ export default class Hummingbird {
     }
 
     async onmempool(tx) {
-        await this.ontransaction(tx);
+        for (const state_machine of this.state_machines) {
+            if (state_machine.onmempool) {
+                await state_machine.onmempool(tx);
+            } else {
+                await state_machine.ontransaction(tx);
+            }
+        }
     }
 
     async ontransaction(tx) {
@@ -299,7 +309,6 @@ export default class Hummingbird {
                 if (err) { return reject(err) }
                 const hash = res.result;
                 if (this.blockreq) {
-                    //console.log("BLOCK", this.blockreq);
                     reject("block fetch can only be called one at a time");
                 } else {
                     this.blockreq = { resolve, reject, height, start: Date.now() };

@@ -379,7 +379,133 @@ describe("hummingbird", function() {
                 assert.equal(num, 0);
             }
         });
-    });
 
+        it("stops processing mempool while crawling old blocks", function(done) {
+            this.timeout(60000);
+
+            let processingBlock = false;
+            let receivedTXDuringBlock = false;
+            let curr = 612566;
+            let complete = false;
+
+            class TestHummingbird extends Hummingbird {
+                async curr() {
+                    return curr;
+                }
+
+                async height() {
+                    this.blockheight = 612568;
+                    return this.blockheight;
+                }
+
+                async onrealtime() {
+                    setTimeout(function() {
+                        assert(!receivedTXDuringBlock);
+                        assert(!complete);
+                        hum.reconnect = false;
+                        hum.disconnect();
+                        done();
+                    }, 300);
+                }
+            }
+
+            class StateMachine {
+                onmempool(tx) {
+                    if (processingBlock) {
+                        receivedTXDuringBlock = true;
+                    }
+                }
+
+                ontransaction(tx) {
+                    //console.log("TX", tx.tx.h);
+                }
+
+                ontransactions(txs, block) {
+                    curr = 612568;
+                    processingBlock = false;
+                }
+            }
+
+            const hum = new TestHummingbird(Object.assign({}, config, {
+                state_machines: [new StateMachine()]
+            }));
+
+            hum.onconnect = async function() {
+                await hum.height();
+                processingBlock = true;
+                await hum.crawl();
+            }
+
+
+            hum.start();
+        });
+
+        it("keeps processing mempool while crawling recent blocks", function(done) {
+            this.timeout(60000);
+
+            let processingBlock = false;
+            let receivedTXDuringBlock = false;
+            let curr = 612567;
+            let complete = false;
+
+            class TestHummingbird extends Hummingbird {
+                async curr() {
+                    return curr;
+                }
+
+                async height() {
+                    this.blockheight = 612568;
+                    return this.blockheight;
+                }
+            }
+
+            class StateMachine {
+                onmempool(tx) {
+                    if (processingBlock) {
+                        receivedTXDuringBlock = true;
+
+                        if (!complete) {
+                            complete = true;
+                            assert(receivedTXDuringBlock);
+                            hum.reconnect = false;
+                            hum.disconnect();
+                            done();
+                        }
+                    }
+
+                }
+
+                ontransaction(tx) {
+                    //console.log("TX", tx.tx.h);
+                }
+
+                ontransactions(txs, block) {
+                    curr = 612568;
+                }
+            }
+
+            const hum = new TestHummingbird(Object.assign({}, config, {
+                state_machines: [new StateMachine()]
+            }));
+
+            hum._crawl = hum.crawl;
+            hum.crawl = async function crawl() {
+                processingBlock = true;
+                await hum._crawl();
+
+                setTimeout(function() {
+                    processingBlock = false;
+                }, 1000);
+            };
+
+            hum.onconnect = async function() {
+                await hum.height();
+                await hum.crawl();
+            }
+
+
+            hum.start();
+        });
+    });
 });
 
