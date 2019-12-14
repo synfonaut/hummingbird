@@ -1,6 +1,6 @@
 {
   "name": "hummingbird-bitcoin",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A Real-time Bitcoin Application Framework",
   "main": "index.js",
   "scripts": {
@@ -24,6 +24,7 @@
     "bitcoind-rpc": "0.8.1",
     "debug": "4.1.1",
     "mongodb": "3.3.4",
+    "promise-queue": "2.2.5",
     "read-last-lines": "1.7.1",
     "txo": "github:synfonaut/txo"
   }

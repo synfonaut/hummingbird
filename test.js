@@ -187,7 +187,7 @@ describe("hummingbird", function() {
     });
 
     describe("peer", function() {
-        this.timeout(1500);
+        this.timeout(5000);
 
         it("automatically reconnect", function(done) {
             const h = new Hummingbird(config);

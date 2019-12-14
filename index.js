@@ -4,9 +4,11 @@ const { Peer, Messages } = require("b2p2p");
 import bsv from "bsv"
 import RPCClient from "bitcoind-rpc"
 import txo from "txo"
+import Queue from "promise-queue"
 
 import * as tape from "./tape"
 import { sleep } from "./helpers"
+
 
 const messages = new Messages({ Block: bsv.Block, BlockHeader: bsv.BlockHeader, Transaction: bsv.Transaction, MerkleBlock: bsv.MerkleBlock });
 
@@ -58,6 +60,8 @@ export default class Hummingbird {
         this.ready = function() {};
         this.blockreq = null;
 
+        this.queue = new Queue(1, Infinity);
+
         this.rpc = new RPCClient(rpcconfig);
 
         this.currheight = 0;
@@ -102,7 +106,12 @@ export default class Hummingbird {
             if (this.mode == MODE.MEMPOOL || this.mode == MODE.BOTH) {
                 if (this.state == STATE.LISTENING) {
                     const tx = await txo.fromTx(message.transaction);
-                    await this.onmempool(tx);
+                    this.queue.add(() => {
+                        return this.onmempool(tx); // return a promise
+                    }).catch(e => {
+                        log(`error while processing queue`);
+                        throw e;
+                    });
                 }
             }
         });
@@ -115,7 +124,13 @@ export default class Hummingbird {
             log(`error ${message}`);
         });
 
-        log(`setup hummingbird`);
+        if (this.mode == MODE.MEMPOOL) {
+            log(`setup hummingbird in mempool`);
+        } else if (this.mode == MODE.BLOCK) {
+            log(`setup hummingbird in block`);
+        }  else {
+            log(`setup hummingbird`);
+        }
     }
 
     // ACTIONS
