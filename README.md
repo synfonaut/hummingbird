@@ -136,6 +136,10 @@ Hummingbird has a test suite built on Mocha. If you'd like to contribute or foun
     npm install
     npm test
 
+## TODO
+
+- Generate bundle so "node -r esm" isn't needed
+
 ## Ideas for Hummingbird
 
 - Add Bitcoin testing helpers
