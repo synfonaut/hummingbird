@@ -127,6 +127,11 @@ if (require.main === module) {
 }
 ```
 
+## Changelog
+
+v0.0.7 — December 29, 2019 — Fix bug with older node versions
+v0.0.6 — December 10, 2019 — Initial release
+
 ## Test
 
 Hummingbird has a test suite built on Mocha. If you'd like to contribute or found a bug, please check the test suite for compatibility.
