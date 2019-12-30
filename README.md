@@ -11,7 +11,6 @@ Hummingbird takes a novel approach to refreshing the mempool, ensuring all trans
 
 *Note: With Hummingbird, your application logic should be able to handle processing a transaction twice. It doesn't happen often, but sometimes you need to re-process old transactions, and a careful use of database indexes and checking error messages can safely ensure your application works as expected. Check the `helpers` file for examples.*
 
-
 ## Install
 
     npm install hummingbird-bitcoin
@@ -132,7 +131,7 @@ For speed and efficiency, Hummingbird can split block and mempool handlers into 
 
 This is useful to continue processing mempool transactions in real-time during large blocks.
 
-
+```javascript
     // script1.js
     const hummingbird = new Hummingbird({
         mode: Hummingbird.MODE.BLOCK,
@@ -144,6 +143,7 @@ This is useful to continue processing mempool transactions in real-time during l
         mode: Hummingbird.MODE.MEMPOOL,
         ...
     });
+```
 
 ## Changelog
 
