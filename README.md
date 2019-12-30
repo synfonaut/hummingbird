@@ -129,8 +129,8 @@ if (require.main === module) {
 
 ## Changelog
 
-v0.0.7 — December 29, 2019 — Fix bug with older node versions
-v0.0.6 — December 10, 2019 — Initial release
+* v0.0.7 — December 29, 2019 — Fix bug with older node versions
+* v0.0.6 — December 10, 2019 — Initial release
 
 ## Test
 
