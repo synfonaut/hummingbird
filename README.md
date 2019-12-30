@@ -126,6 +126,24 @@ if (require.main === module) {
     })();
 }
 ```
+## Modes
+
+For speed and efficiency, Hummingbird can split block and mempool handlers into two separate processors. The mempool listener will wait until the block processer has caught up, and then switch to real-time.
+
+This is useful to continue processing mempool transactions in real-time during large blocks.
+
+
+    // script1.js
+    const hummingbird = new Hummingbird({
+        mode: Hummingbird.MODE.BLOCK,
+        ...
+    });
+
+    // script2.js
+    const hummingbird = new Hummingbird({
+        mode: Hummingbird.MODE.MEMPOOL,
+        ...
+    });
 
 ## Changelog
 
