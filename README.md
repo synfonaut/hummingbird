@@ -139,6 +139,7 @@ Hummingbird has a test suite built on Mocha. If you'd like to contribute or foun
 ## TODO
 
 - Generate bundle so "node -r esm" isn't needed
+- Implement https://github.com/deanmlittle/bsv-p2p
 
 ## Ideas for Hummingbird
 
@@ -146,8 +147,9 @@ Hummingbird has a test suite built on Mocha. If you'd like to contribute or foun
 - Add block validation
 - Add patching script
 - Write to tape.txt in PATCH mode for one tape
+- How to handle gapscans?
 - Add state_machine.matches(tx) to formalize logic
-- Application push notifications
+- Application push notifications (pluggable backends: Redis)
 
 ## Author
 
