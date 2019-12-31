@@ -160,6 +160,26 @@ describe("hummingbird", function() {
             h.connect();
         });
 
+        it("validates number of txs in block before processing", function(done) {
+            this.timeout(25000);
+            this.slow(10000);
+
+            const h = new Hummingbird(config);
+            h.isuptodate = function() { return true };
+            h._onblock = h.onblock;
+            h.onblock = function(block) {
+                h._onblock(block);
+                assert.equal(block.txs.length, 1490);
+                h.disconnect();
+                done();
+            }
+
+            h.onrealtime = async function() {
+                const block = await h.fetch(615411);
+                const txs = block.txs;
+                txs.pop();
+                block.txs = txs;
+                await h.handleblock(block);
             };
 
             h.connect();
