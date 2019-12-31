@@ -214,10 +214,38 @@ export default class Hummingbird {
     }
 
     async handleblock(block) {
+        const height = block.header.height;
+        const hash = block.header.hash;
+
+        let rpcblock = await this.getblock(hash);
+
+        const numtxs = block.txs.length;
+        const expectedtxs = rpcblock.tx.length;
+
+        if (numtxs !== expectedtxs) {
+            log(`WARNING b2p2p provided block ${height} hash ${hash} with ${numtxs} txs but rpc reported ${expectedtxs} ...refetching to resolve conflict`);
+
+            const newblock = await this.fetch(height);
+            const newhash = newblock.header.hash;
+
+            const newrpcblock = await this.getblock(hash);
+
+            const newnumtxs = newblock.txs.length;
+            const newexpectedtxs = newrpcblock.tx.length;
+
+            if (newnumtxs !== newexpectedtxs) {
+                log(`ERROR b2p2p provided block ${height} hash ${newhash} with ${newnumtxs} txs but rpc reported ${newexpectedtxs} ...stopping`);
+                throw new Error(`error while pre-validating block ${height}`);
+            } else {
+                log(`SOLVED b2p2p inconsistency, block ${height} hash ${newhash} with ${newnumtxs} txs and rpc reported ${newexpectedtxs}`);
+                block = newblock;
+            }
+        }
+
         await this.onblock(block);
 
         const timestamp = Math.floor(Date.now() / 1000);
-        const logline = `BLOCK ${block.header.height} ${block.header.hash} ${block.header.prevHash} ${timestamp}`;
+        const logline = `BLOCK ${height} ${hash} ${block.header.prevHash} ${timestamp}`;
         await tape.write(logline, this.config.tapefile);
     }
 
@@ -337,13 +365,12 @@ export default class Hummingbird {
         });
     }
 
-    async numtxs(height) {
+    async getblock(hash) {
         return new Promise((resolve, reject) => {
-            this.rpc.getBlock(async (err, res) => {
-                if (err) { reject(err) }
-                else {
-                    this.blockheight = res.result.blocks;
-                    resolve(this.blockheight);
+            this.rpc.getBlock(hash, async (err, res) => {
+                if (err) { reject(err)
+                } else {
+                    resolve(res.result);
                 }
             });
         });
