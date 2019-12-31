@@ -79,25 +79,21 @@ export default class Hummingbird {
 
         this.peer.on("block", async (message) => {
             if (this.mode == MODE.MEMPOOL) {
-                this.rpc.getBlockHeader(message.block.header.hash, async (err, res) => {
-                    if (err) { throw new Error(`error while fetching height for new block: ${e}`) }
-                    this.blockheight = res.result.height;
-                });
+                this.blockheight = await this.heightforhash(message.block.header.hash);
             } else {
                 if (this.state === STATE.CRAWLING && this.blockreq) {
                     const block = await this.parseBlock(message.block, this.blockreq.height);
                     const diff = (Date.now() - this.blockreq.start) / 1000;
+
                     log(`fetched block ${block.header.height} in ${diff} seconds`);
                     this.blockreq.resolve(block);
                     this.blockreq = null;
+
                 } else if (this.state == STATE.LISTENING) {
-                    this.rpc.getBlockHeader(message.block.header.hash, async (err, res) => {
-                        if (err) { throw new Error(`error while fetching height for new block: ${e}`) }
-                        this.blockheight = res.result.height;
-                        const block = await this.parseBlock(message.block, res.result.height);
-                        await this.handleblock(block);
-                        await this.crawl();
-                    });
+                    this.blockheight = await this.heightforhash(message.block.header.hash);
+                    const block = await this.parseBlock(message.block, this.blockheight);
+                    await this.handleblock(block);
+                    await this.crawl();
                 }
             }
         });
@@ -341,6 +337,36 @@ export default class Hummingbird {
         });
     }
 
+    async numtxs(height) {
+        return new Promise((resolve, reject) => {
+            this.rpc.getBlock(async (err, res) => {
+                if (err) { reject(err) }
+                else {
+                    this.blockheight = res.result.blocks;
+                    resolve(this.blockheight);
+                }
+            });
+        });
+    }
+
+    async heightforhash(hash) {
+        return new Promise(async (resolve, reject) => {
+            this.rpc.getBlockHeader(hash, async (err, res) => {
+                if (err) { throw new Error(`error while fetching height for hash ${hash} ${err}`) }
+                resolve(res.result.height);
+            });
+        });
+    }
+
+    async hashforheight(height) {
+        return new Promise(async (resolve, reject) => {
+            this.rpc.getBlockHash(height, async (err, res) => {
+                if (err) { throw new Error(`error while fetching hash for height ${height} ${err}`) }
+                resolve(res.result);
+            });
+        });
+    }
+
     async isuptodate() {
         return new Promise(async (resolve, reject) => {
             const curr = await this.curr();
@@ -355,20 +381,15 @@ export default class Hummingbird {
 
     fetch(height) {
         log(`fetching block ${height}`);
-        return new Promise((resolve, reject) => {
-
-            this.state = STATE.CRAWLING;
-
-            this.rpc.getBlockHash(height, async (err, res) => {
-                if (err) { return reject(err) }
-                const hash = res.result;
-                if (this.blockreq) {
-                    reject("block fetch can only be called one at a time");
-                } else {
-                    this.blockreq = { resolve, reject, height, start: Date.now() };
-                    this.peer.sendMessage(this.peer.messages.GetData.forBlock(hash))
-                }
-            });
+        return new Promise(async (resolve, reject) => {
+            if (this.blockreq) {
+                reject("block fetch can only be called one at a time");
+            } else {
+                this.state = STATE.CRAWLING;
+                const hash = await this.hashforheight(height);
+                this.blockreq = { resolve, reject, height, start: Date.now() };
+                this.peer.sendMessage(this.peer.messages.GetData.forBlock(hash))
+            }
         });
     }
 
