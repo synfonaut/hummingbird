@@ -121,25 +121,21 @@ class Hummingbird {
 
         this.peer.on("block", async (message) => {
             if (this.mode == MODE.MEMPOOL) {
-                this.rpc.getBlockHeader(message.block.header.hash, async (err, res) => {
-                    if (err) { throw new Error(`error while fetching height for new block: ${e}`) }
-                    this.blockheight = res.result.height;
-                });
+                this.blockheight = await this.heightforhash(message.block.header.hash);
             } else {
                 if (this.state === STATE.CRAWLING && this.blockreq) {
                     const block = await this.parseBlock(message.block, this.blockreq.height);
                     const diff = (Date.now() - this.blockreq.start) / 1000;
+
                     log$1(`fetched block ${block.header.height} in ${diff} seconds`);
                     this.blockreq.resolve(block);
                     this.blockreq = null;
+
                 } else if (this.state == STATE.LISTENING) {
-                    this.rpc.getBlockHeader(message.block.header.hash, async (err, res) => {
-                        if (err) { throw new Error(`error while fetching height for new block: ${e}`) }
-                        this.blockheight = res.result.height;
-                        const block = await this.parseBlock(message.block, res.result.height);
-                        await this.handleblock(block);
-                        await this.crawl();
-                    });
+                    this.blockheight = await this.heightforhash(message.block.header.hash);
+                    const block = await this.parseBlock(message.block, this.blockheight);
+                    await this.handleblock(block);
+                    await this.crawl();
                 }
             }
         });
@@ -260,10 +256,38 @@ class Hummingbird {
     }
 
     async handleblock(block) {
+        const height = block.header.height;
+        const hash = block.header.hash;
+
+        let rpcblock = await this.getblock(hash);
+
+        const numtxs = block.txs.length;
+        const expectedtxs = rpcblock.tx.length;
+
+        if (numtxs !== expectedtxs) {
+            log$1(`WARNING b2p2p provided block ${height} hash ${hash} with ${numtxs} txs but rpc reported ${expectedtxs} ...refetching to resolve conflict`);
+
+            const newblock = await this.fetch(height);
+            const newhash = newblock.header.hash;
+
+            const newrpcblock = await this.getblock(hash);
+
+            const newnumtxs = newblock.txs.length;
+            const newexpectedtxs = newrpcblock.tx.length;
+
+            if (newnumtxs !== newexpectedtxs) {
+                log$1(`ERROR b2p2p provided block ${height} hash ${newhash} with ${newnumtxs} txs but rpc reported ${newexpectedtxs} ...stopping`);
+                throw new Error(`error while pre-validating block ${height}`);
+            } else {
+                log$1(`SOLVED b2p2p inconsistency, block ${height} hash ${newhash} with ${newnumtxs} txs and rpc reported ${newexpectedtxs}`);
+                block = newblock;
+            }
+        }
+
         await this.onblock(block);
 
         const timestamp = Math.floor(Date.now() / 1000);
-        const logline = `BLOCK ${block.header.height} ${block.header.hash} ${block.header.prevHash} ${timestamp}`;
+        const logline = `BLOCK ${height} ${hash} ${block.header.prevHash} ${timestamp}`;
         await write(logline, this.config.tapefile);
     }
 
@@ -383,6 +407,35 @@ class Hummingbird {
         });
     }
 
+    async getblock(hash) {
+        return new Promise((resolve, reject) => {
+            this.rpc.getBlock(hash, async (err, res) => {
+                if (err) { reject(err);
+                } else {
+                    resolve(res.result);
+                }
+            });
+        });
+    }
+
+    async heightforhash(hash) {
+        return new Promise(async (resolve, reject) => {
+            this.rpc.getBlockHeader(hash, async (err, res) => {
+                if (err) { throw new Error(`error while fetching height for hash ${hash} ${err}`) }
+                resolve(res.result.height);
+            });
+        });
+    }
+
+    async hashforheight(height) {
+        return new Promise(async (resolve, reject) => {
+            this.rpc.getBlockHash(height, async (err, res) => {
+                if (err) { throw new Error(`error while fetching hash for height ${height} ${err}`) }
+                resolve(res.result);
+            });
+        });
+    }
+
     async isuptodate() {
         return new Promise(async (resolve, reject) => {
             const curr = await this.curr();
@@ -397,20 +450,15 @@ class Hummingbird {
 
     fetch(height) {
         log$1(`fetching block ${height}`);
-        return new Promise((resolve, reject) => {
-
-            this.state = STATE.CRAWLING;
-
-            this.rpc.getBlockHash(height, async (err, res) => {
-                if (err) { return reject(err) }
-                const hash = res.result;
-                if (this.blockreq) {
-                    reject("block fetch can only be called one at a time");
-                } else {
-                    this.blockreq = { resolve, reject, height, start: Date.now() };
-                    this.peer.sendMessage(this.peer.messages.GetData.forBlock(hash));
-                }
-            });
+        return new Promise(async (resolve, reject) => {
+            if (this.blockreq) {
+                reject("block fetch can only be called one at a time");
+            } else {
+                this.state = STATE.CRAWLING;
+                const hash = await this.hashforheight(height);
+                this.blockreq = { resolve, reject, height, start: Date.now() };
+                this.peer.sendMessage(this.peer.messages.GetData.forBlock(hash));
+            }
         });
     }
 
