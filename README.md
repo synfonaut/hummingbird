@@ -127,7 +127,7 @@ if (require.main === module) {
 ```
 ## Modes
 
-For speed and efficiency, Hummingbird can split block and mempool handlers into two separate processors. The mempool listener will wait until the block processer has caught up, and then switch to real-time.
+For speed and efficiency, Hummingbird can split block and mempool handlers into two separate processes. The mempool listener will wait until the block processer has caught up, and then switch to real-time.
 
 ```javascript
 // script1.js
