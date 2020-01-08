@@ -21,8 +21,8 @@
     "bsv": "^1.0.0"
   },
   "dependencies": {
-    "b2p2p": "0.0.1",
     "bitcoind-rpc": "0.8.1",
+    "bsv-p2p": "github:deanmlittle/bsv-p2p",
     "debug": "4.1.1",
     "mongodb": "3.3.4",
     "promise-queue": "2.2.5",
