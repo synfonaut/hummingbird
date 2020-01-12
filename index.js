@@ -286,16 +286,22 @@ export default class Hummingbird {
     async onmempool(tx) {
         for (const state_machine of this.state_machines) {
             if (state_machine.onmempool) {
-                await state_machine.onmempool(tx);
+                if (!await state_machine.onmempool(tx)) {
+                    throw new Error("error processing onmempool tx");
+                }
             } else {
-                await state_machine.ontransaction(tx);
+                if (!await state_machine.ontransaction(tx)) {
+                    throw new Error("error processing ontransaction tx");
+                }
             }
         }
     }
 
     async ontransaction(tx) {
         for (const state_machine of this.state_machines) {
-            await state_machine.ontransaction(tx);
+            if (!await state_machine.ontransaction(tx)) {
+                throw new Error("error processing ontransaction tx");
+            }
         }
     }
 
@@ -313,10 +319,16 @@ export default class Hummingbird {
             state_machine.log(`processing block ${block.header.height} with ${block.txs.length} txs`);
             let start = Date.now();
             if (state_machine.ontransactions) {
-                await state_machine.ontransactions(block.txs, block);
+                if (!await state_machine.ontransactions(block.txs, block)) {
+                    state_machine.log(`error processing block ${block.header.height}`);
+                    throw new Error(`error processing block ${block.header.height}`);
+                }
             } else {
                 for (const tx of block.txs) {
-                    await state_machine.ontransaction(tx);
+                    if (!await state_machine.ontransaction(tx)) {
+                        state_machine.log(`error processing block ${block.header.height}`);
+                        throw new Error(`error processing block ${block.header.height}`);
+                    }
                 }
             }
             let diff = Date.now() - start;

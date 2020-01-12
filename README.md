@@ -162,6 +162,8 @@ Hummingbird has a test suite built on Mocha. If you'd like to contribute or foun
 
 ## TODO
 
+- BUG: Should throw error when ontransaction or ontransactions doesn't return true
+- Fix mempool refresh test case
 - Implement https://github.com/deanmlittle/bsv-p2p
 
 ## Ideas for Hummingbird
