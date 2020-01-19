@@ -1,6 +1,6 @@
 const log = require("debug")("hummingbird");
 
-const { Peer, Messages } = require("bsv-p2p");
+const { Peer, Messages } = require("b2p2p");
 import bsv from "bsv"
 import RPCClient from "bitcoind-rpc"
 import txo from "txo"
