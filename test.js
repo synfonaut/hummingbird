@@ -311,7 +311,10 @@ describe("hummingbird", function() {
 
             let num = 0;
             class StateMachine {
-                ontransaction() { num += 1 }
+                ontransaction() {
+                    num += 1;
+                    return true;
+                }
             }
 
             assert(tx);
@@ -330,7 +333,10 @@ describe("hummingbird", function() {
 
             let num = 0;
             class StateMachine {
-                ontransaction() { num += 1 }
+                ontransaction() {
+                    num += 1;
+                    return true;
+                }
             }
 
             assert(tx);
@@ -352,7 +358,10 @@ describe("hummingbird", function() {
 
             let num = 0;
             class StateMachine {
-                ontransaction() { num += 1 }
+                ontransaction() {
+                    num += 1;
+                    return true;
+                }
             }
 
             assert(tx);
@@ -447,15 +456,18 @@ describe("hummingbird", function() {
                     if (processingBlock) {
                         receivedTXDuringBlock = true;
                     }
+                    return true;
                 }
 
                 ontransaction(tx) {
                     //console.log("TX", tx.tx.h);
+                    return true;
                 }
 
                 ontransactions(txs, block) {
                     curr = 612568;
                     processingBlock = false;
+                    return true;
                 }
             }
 
@@ -505,15 +517,17 @@ describe("hummingbird", function() {
                             done();
                         }
                     }
-
+                    return true;
                 }
 
                 ontransaction(tx) {
                     //console.log("TX", tx.tx.h);
+                    return true;
                 }
 
                 ontransactions(txs, block) {
                     curr = 612568;
+                    return true;
                 }
             }
 
