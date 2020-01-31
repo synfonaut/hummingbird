@@ -147,6 +147,7 @@ This is useful to continue processing mempool transactions in real-time during l
 
 ## Changelog
 
+* v0.1.2 — January 31, 2019 — Merged in bsv-p2p for Genesis support
 * v0.1.0 — December 30, 2019 — Added block validation to patch b2p2p race condition
 * v0.0.7 — December 29, 2019 — Fixed bug with older node versions
 * v0.0.6 — December 10, 2019 — Initial release

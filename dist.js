@@ -49,7 +49,7 @@ function sleep(ms) {
 
 const log$1 = require("debug")("hummingbird");
 
-const { Peer, Messages } = require("b2p2p");
+const { Peer, Messages } = require("bsv-p2p");
 
 
 const messages = new Messages({ Block: bsv.Block, BlockHeader: bsv.BlockHeader, Transaction: bsv.Transaction, MerkleBlock: bsv.MerkleBlock });

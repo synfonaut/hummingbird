@@ -1,6 +1,6 @@
 {
     "name": "hummingbird-bitcoin",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "description": "A Real-time Bitcoin Application Framework",
     "main": "dist.js",
     "scripts": {
@@ -21,9 +21,10 @@
         "bsv": "^1.2.0"
     },
     "dependencies": {
-        "bsv-p2p": "github:deanmlittle/bsv-p2p",
         "bitcoind-rpc": "0.8.1",
+        "bsv-p2p": "github:deanmlittle/bsv-p2p",
         "debug": "4.1.1",
+        "lodash": "4.17.15",
         "mongodb": "3.3.4",
         "promise-queue": "2.2.5",
         "read-last-lines": "1.7.1",
