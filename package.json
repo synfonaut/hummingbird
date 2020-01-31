@@ -1,32 +1,32 @@
 {
-  "name": "hummingbird-bitcoin",
-  "version": "0.1.1",
-  "description": "A Real-time Bitcoin Application Framework",
-  "main": "dist.js",
-  "scripts": {
-    "test": "DEBUG=hummingbird* ./node_modules/.bin/mocha --require esm --bail",
-    "build": "rollup --format cjs index.js > dist.js"
-  },
-  "keywords": [
-    "bitcoin",
-    "bsv"
-  ],
-  "author": "synfonaut <synfonaut@protonmail.com>",
-  "license": "LICENSE.md",
-  "devDependencies": {
-    "esm": "3.2.25",
-    "mocha": "6.2.2"
-  },
-  "peerDependencies": {
-    "bsv": "^1.2.0"
-  },
-  "dependencies": {
-    "bitcoind-rpc": "0.8.1",
-    "b2p2p": "0.0.1",
-    "debug": "4.1.1",
-    "mongodb": "3.3.4",
-    "promise-queue": "2.2.5",
-    "read-last-lines": "1.7.1",
-    "txo": "github:synfonaut/txo"
-  }
+    "name": "hummingbird-bitcoin",
+    "version": "0.1.1",
+    "description": "A Real-time Bitcoin Application Framework",
+    "main": "dist.js",
+    "scripts": {
+        "test": "DEBUG=hummingbird* ./node_modules/.bin/mocha --require esm --bail",
+        "build": "rollup --format cjs index.js > dist.js"
+    },
+    "keywords": [
+        "bitcoin",
+        "bsv"
+    ],
+    "author": "synfonaut <synfonaut@protonmail.com>",
+    "license": "LICENSE.md",
+    "devDependencies": {
+        "esm": "3.2.25",
+        "mocha": "6.2.2"
+    },
+    "peerDependencies": {
+        "bsv": "^1.2.0"
+    },
+    "dependencies": {
+        "bsv-p2p": "github:deanmlittle/bsv-p2p",
+        "bitcoind-rpc": "0.8.1",
+        "debug": "4.1.1",
+        "mongodb": "3.3.4",
+        "promise-queue": "2.2.5",
+        "read-last-lines": "1.7.1",
+        "txo": "github:synfonaut/txo"
+    }
 }
