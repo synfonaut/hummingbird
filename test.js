@@ -184,6 +184,33 @@ describe("hummingbird", function() {
 
             h.connect();
         });
+
+        it.skip("processes very large blocks", function(done) {
+            this.timeout(999999);
+
+            const h = new Hummingbird(config);
+            h.onconnect = async function() {
+                console.log("1");
+                const block = await h.fetch(635142);
+                console.log("2");
+                console.log("BLOCK", block);
+                /*
+                assert(block.header.height, 608811);
+                assert(block.txs.length, 2072);
+                assert(block.txs[0].tx.h, "2086e72ce325fe377e18ee2c57f1ab5350457116a153d204354262cb131a10bc");
+                assert(block.txs[2071].tx.h, "5090fb68d0f5b445050dc3eb5a58fbbca00fc433c4067fb439257a4922b6a9fe");
+
+                assert(block.txs[0].blk);
+                assert.equal(block.txs[0].blk.i, 608811);
+                assert.equal(block.txs[0].blk.t, 1573765073);
+                assert.equal(block.txs[0].blk.h, "0000000000000000034a9d2b738eecce3e9afd8a07bc89ca03023c99f366708f");
+
+                h.disconnect();
+                done();
+                */
+            };
+            h.connect();
+        });
     });
 
     describe("tape", function() {
