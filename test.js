@@ -59,6 +59,7 @@ describe("hummingbird", function() {
         it("disconnects", function(done) {
             const h = new Hummingbird(config);
             h.connect();
+            delete h.peer.promises.connect;
 
             h._onconnect = h.onconnect;
             h.onconnect = function() {

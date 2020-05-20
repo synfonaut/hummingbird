@@ -1,6 +1,7 @@
 const log = require("debug")("hummingbird");
 
-const { Peer, Messages } = require("bsv-p2p");
+import BitcoinP2P from "bsv-p2p"
+
 import bsv from "bsv"
 import RPCClient from "bitcoind-rpc"
 import txo from "txo"
@@ -10,7 +11,7 @@ import * as tape from "./tape"
 import { sleep } from "./helpers"
 
 
-const messages = new Messages({ Block: bsv.Block, BlockHeader: bsv.BlockHeader, Transaction: bsv.Transaction, MerkleBlock: bsv.MerkleBlock });
+//const messages = new Messages({ Block: bsv.Block, BlockHeader: bsv.BlockHeader, Transaction: bsv.Transaction, MerkleBlock: bsv.MerkleBlock });
 
 const STATE = {
     DISCONNECTED: "DISCONNECTED",
@@ -67,10 +68,46 @@ export default class Hummingbird {
         this.currheight = 0;
         this.blockheight = 0;
 
-        this.peer = new Peer({ host: this.config.peer.host, messages });
+        const node = "209.50.52.199";
+        const stream = true;
+        const validate = true;
 
-        this.peer.on("ready", () => {
+        this.peer = new BitcoinP2P({ node, stream, validate, DEBUG_LOG: true });
+
+        this.peer.on('block', ({ block }) => {
+            // Only called if `stream = false`
+            console.log("3");
+            console.log("BLOCK", block);
+            console.log("4");
+        });
+
+        this.peer.on('transactions', async ({ header, finished, transactions }) => {
+            /*
+            // `header` if transaction is confirmed in a block. Otherwise it is a mempool tx
+            // `finished` if these are the last transactions in a block
+            for (const [index, transaction] of transactions) {
+                const txhash = transaction.buffer.toString("hex");
+                const tx = await txo.fromTx(txhash);
+                console.log("TX", JSON.stringify(tx, null, 4));
+            }
+            if (finished) {
+                console.log("DONE");
+            }
+            */
+        });
+
+        this.peer.on('disconnected', async ({ disconnects }) => {
+            await this.ondisconnect();
+        });
+
+        this.peer.on('connected', () => {
             this.onconnect();
+        });
+
+        //this.peer = new Peer({ host: this.config.peer.host, messages });
+
+        /*
+        this.peer.on("ready", () => {
         });
 
         this.peer.on("disconnect", async () => {
@@ -119,6 +156,7 @@ export default class Hummingbird {
         this.peer.on("error", (message) => {
             log(`error ${message}`);
         });
+        */
 
         if (this.mode == MODE.MEMPOOL) {
             log(`setup hummingbird in mempool`);
@@ -148,7 +186,7 @@ export default class Hummingbird {
     connect() {
         log(`connect`);
         this.state = STATE.CONNECTING;
-        this.peer.connect();
+        return this.peer.connect();
     }
 
     listen() {
@@ -183,6 +221,7 @@ export default class Hummingbird {
 
     disconnect() {
         log(`disconnecting`);
+        console.log("PROMISES", this.peer.promises);
         try {
             this.peer.disconnect();
         } catch (e) {}
@@ -190,7 +229,8 @@ export default class Hummingbird {
 
     fetchmempool() {
         log(`fetching mempool`);
-        this.peer.sendMessage(this.peer.messages.MemPool());
+
+        //this.peer.sendMessage(this.peer.messages.MemPool());
     }
 
     async crawlblock(height) {
@@ -426,8 +466,9 @@ export default class Hummingbird {
             } else {
                 this.state = STATE.CRAWLING;
                 const hash = await this.hashforheight(height);
-                this.blockreq = { resolve, reject, height, start: Date.now() };
-                this.peer.sendMessage(this.peer.messages.GetData.forBlock(hash))
+                console.log("FETCH", height, hash);
+                //this.blockreq = { resolve, reject, height, start: Date.now() };
+                //this.peer.sendMessage(this.peer.messages.GetData.forBlock(hash))
             }
         });
     }
