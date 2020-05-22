@@ -4,7 +4,7 @@
     "description": "A Real-time Bitcoin Application Framework",
     "main": "dist.js",
     "scripts": {
-        "test": "DEBUG=hummingbird* ./node_modules/.bin/mocha --require esm --bail",
+        "test": "DEBUG=hummingbird* ./node_modules/.bin/mocha --unhandled-rejections=strict --trace-warnings --require esm --bail",
         "build": "rollup --format cjs index.js > dist.js"
     },
     "keywords": [

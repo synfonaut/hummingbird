@@ -72,28 +72,117 @@ export default class Hummingbird {
         const stream = true;
         const validate = true;
 
-        this.peer = new BitcoinP2P({ node, stream, validate, DEBUG_LOG: true });
-
-        this.peer.on('block', ({ block }) => {
-            // Only called if `stream = false`
-            console.log("3");
-            console.log("BLOCK", block);
-            console.log("4");
-        });
+        this.peer = new BitcoinP2P({ node, stream, validate, DEBUG_LOG: false });
 
         this.peer.on('transactions', async ({ header, finished, transactions }) => {
-            /*
-            // `header` if transaction is confirmed in a block. Otherwise it is a mempool tx
-            // `finished` if these are the last transactions in a block
-            for (const [index, transaction] of transactions) {
-                const txhash = transaction.buffer.toString("hex");
-                const tx = await txo.fromTx(txhash);
-                console.log("TX", JSON.stringify(tx, null, 4));
+            if (!header) {
+                if (this.mode == MODE.MEMPOOL || this.mode == MODE.BOTH) {
+                    if (this.state == STATE.LISTENING) {
+
+                        for (const [index, transaction] of transactions) {
+                            const txhash = transaction.buffer.toString("hex");
+                            const tx = await txo.fromTx(txhash);
+
+                            this.queue.add(() => {
+                                return this.ontransaction(tx); // return a promise
+                            }).catch(e => {
+                                log(`error while processing queue`);
+                                throw e;
+                            });
+                        }
+                    }
+                }
+            } else {
+                if (this.mode == MODE.MEMPOOL) {
+                    throw new Error("NOT HANDLED YET x2");
+                    //this.blockheight = await this.heightforhash(message.block.header.hash);
+                } else {
+                    if (this.state === STATE.CRAWLING && this.blockreq) {
+
+                        let relindex  = 0;
+                        for (const [index, transaction] of transactions) {
+
+                            relindex += 1;
+
+                            const tx = await this.parseTransaction(header, this.blockreq.height, transaction);
+                            const isTransactionFinished = (finished && relindex === transactions.length);
+                            this.queue.add(() => {
+                                return this.ontransaction(tx, isTransactionFinished); // return a promise
+                            }).catch(e => {
+                                log(`error while processing queue`);
+                                throw e;
+                            });
+                        }
+
+                        if (finished) {
+                            const diff = (Date.now() - this.blockreq.start) / 1000;
+                            log(`fetched block ${this.blockreq.height} in ${diff} seconds`);
+                            this.blockreq.resolve();
+                            this.blockreq = null;
+                        }
+                    } else if (this.state == STATE.LISTENING) {
+                        console.log("LISTENING");
+                        //this.blockheight = await this.heightforhash(message.block.header.hash);
+                        //const block = await this.parseBlock(message.block, this.blockheight);
+                        //await this.handleblock(block);
+                        //await this.crawl();
+                    }
+                }
             }
-            if (finished) {
-                console.log("DONE");
+
+            /*
+            if (header) {
+                // `header` if transaction is confirmed in a block. Otherwise it is a mempool tx
+                // `finished` if these are the last transactions in a block
+                for (const [index, transaction] of transactions) {
+                    const txhash = transaction.buffer.toString("hex");
+                    const tx = await txo.fromTx(txhash);
+                    console.log("TX", JSON.stringify(tx, null, 4));
+                }
+                if (finished) {
+                    console.log("DONE");
+                }
             }
             */
+
+            /*
+            if (!header) {
+                if (this.mode == MODE.MEMPOOL || this.mode == MODE.BOTH) {
+                    if (this.state == STATE.LISTENING) {
+
+                        for (const [index, transaction] of transactions) {
+                            const txhash = transaction.buffer.toString("hex");
+                            const tx = await txo.fromTx(txhash);
+
+                            this.queue.add(() => {
+                                return this.onmempool(tx); // return a promise
+                            }).catch(e => {
+                                log(`error while processing queue`);
+                                throw e;
+                            });
+                        }
+                    }
+                }
+            } else {
+                if (this.mode == MODE.MEMPOOL) {
+                    this.blockheight = await this.heightforhash(message.block.header.hash);
+                } else {
+                    if (this.state === STATE.CRAWLING && this.blockreq) {
+                        console.log("REQ REQ REQ");
+                        const block = await this.parseBlock(header, this.blockreq.height, transactions);
+                        const diff = (Date.now() - this.blockreq.start) / 1000;
+                        log(`fetched block ${block.header.height} in ${diff} seconds`);
+                        this.blockreq.resolve(block);
+                        this.blockreq = null;
+                    } else if (this.state == STATE.LISTENING) {
+                        //this.blockheight = await this.heightforhash(message.block.header.hash);
+                        //const block = await this.parseBlock(message.block, this.blockheight);
+                        //await this.handleblock(block);
+                        //await this.crawl();
+                    }
+                }
+            }
+        */
         });
 
         this.peer.on('disconnected', async ({ disconnects }) => {
@@ -104,15 +193,7 @@ export default class Hummingbird {
             this.onconnect();
         });
 
-        //this.peer = new Peer({ host: this.config.peer.host, messages });
-
         /*
-        this.peer.on("ready", () => {
-        });
-
-        this.peer.on("disconnect", async () => {
-            await this.ondisconnect();
-        });
 
         this.peer.on("block", async (message) => {
             if (this.mode == MODE.MEMPOOL) {
@@ -186,11 +267,21 @@ export default class Hummingbird {
     connect() {
         log(`connect`);
         this.state = STATE.CONNECTING;
-        return this.peer.connect();
+
+        this.peer.connect();
     }
 
     listen() {
         this.state = STATE.LISTENING;
+
+        if (this.mode == MODE.MEMPOOL) {
+            this.peer.listenForTxs();
+        } else if (this.mode == MODE.BLOCK) {
+            this.peer.listenForBlocks();
+        } else {
+            this.peer.listenForBlocks();
+            this.peer.listenForTxs();
+        }
         log(`listening`);
     }
 
@@ -221,20 +312,29 @@ export default class Hummingbird {
 
     disconnect() {
         log(`disconnecting`);
-        console.log("PROMISES", this.peer.promises);
         try {
+            delete this.peer.promises.connect;
             this.peer.disconnect();
         } catch (e) {}
     }
 
     fetchmempool() {
-        log(`fetching mempool`);
-
-        //this.peer.sendMessage(this.peer.messages.MemPool());
+        if (this.peer.connected) {
+            log(`fetching mempool`);
+            this.peer.getMempool();
+        } else {
+            log(`not connected, skipping fetching mempool`);
+        }
     }
 
     async crawlblock(height) {
         return new Promise(async (resolve, reject) => {
+            if (!this.peer.connected) {
+                log(`cannot crawl block ${height}, not connected`);
+                resolve();
+                return;
+            }
+
             if (this.blockheight > 0) {
                 log(`handling block ${height} (${this.blockheight - height} behind)`);
             } else {
@@ -323,28 +423,15 @@ export default class Hummingbird {
         }
     }
 
-    async onmempool(tx) {
+    async ontransaction(tx, finished=false) {
         for (const state_machine of this.state_machines) {
-            if (state_machine.onmempool) {
-                if (!await state_machine.onmempool(tx)) {
-                    throw new Error("error processing onmempool tx");
-                }
-            } else {
-                if (!await state_machine.ontransaction(tx)) {
-                    throw new Error("error processing ontransaction tx");
-                }
-            }
-        }
-    }
-
-    async ontransaction(tx) {
-        for (const state_machine of this.state_machines) {
-            if (!await state_machine.ontransaction(tx)) {
+            if (!await state_machine.ontransaction(tx, finished)) {
                 throw new Error("error processing ontransaction tx");
             }
         }
     }
 
+    /*
     async onblock(block) {
         if (block && block.header) {
             log(`onblock ${block.header.height}`);
@@ -378,6 +465,7 @@ export default class Hummingbird {
         let blockdiff = Date.now() - blockstart;
         log(`finished processing block ${block.header.height} with ${block.txs.length} txs in ${blockdiff/1000} seconds`);
     }
+    */
 
     async onstart() { }
     async onrealtime() {
@@ -466,20 +554,33 @@ export default class Hummingbird {
             } else {
                 this.state = STATE.CRAWLING;
                 const hash = await this.hashforheight(height);
-                console.log("FETCH", height, hash);
-                //this.blockreq = { resolve, reject, height, start: Date.now() };
-                //this.peer.sendMessage(this.peer.messages.GetData.forBlock(hash))
+                this.blockreq = { resolve, reject, height, start: Date.now() };
+                this.peer.getBlock(hash);
             }
         });
     }
 
-    async parseBlock(block, height) {
-        const header = Object.assign( block.header.toObject(), { height });
-        const txs = await Promise.all(block.transactions.map(async (tx) => {
-            return Object.assign(await txo.fromTx(tx), {
+    async parseTransaction(header, height, transaction) {
+        const txhash = transaction.buffer.toString("hex");
+        return Object.assign(await txo.fromTx(txhash), {
+            blk: {
+                i: height,
+                h: header.hash.toString("hex"),
+                t: header.time,
+            }
+        });
+    }
+
+
+    async parseBlock(block, height, transactions) {
+        const header = Object.assign( block, { height });
+        const txs = await Promise.all(transactions.map(async (tx) => {
+            const [index, transaction] = tx;
+            const txhash = transaction.buffer.toString("hex");
+            return Object.assign(await txo.fromTx(txhash), {
                 blk: {
                     i: header.height,
-                    h: header.hash,
+                    h: Buffer.from(header.hash, "hex").toString(),
                     t: header.time,
                 }
             });

@@ -15,15 +15,16 @@ const config = {
 describe("hummingbird", function() {
     this.slow(1500);
 
-    describe("state", function() {
+    describe.only("state", function() {
         it("initialize disconnected", function() {
             const h = new Hummingbird(config);
             assert.equal(h.state, Hummingbird.STATE.DISCONNECTED);
         });
 
-        it("switches to connecting on connect", function() {
+        it("switches to connecting on connect", async function() {
             const h = new Hummingbird(config);
-            h.connect();
+            await h.connect();
+            h.isuptodate = function() { return true };
             assert.equal(h.state, Hummingbird.STATE.CONNECTING);
             h.disconnect();
         });
@@ -31,50 +32,55 @@ describe("hummingbird", function() {
         it("switches to crawling after connect", function(done) {
             this.timeout(10000);
 
-            const h = new Hummingbird(config);
-            h.connect();
-            h.process = function() {};
-            h.isuptodate = function() { return false };
+            (async function() {
+                const h = new Hummingbird(config);
+                await h.connect();
+                h.process = function() {};
+                h.isuptodate = function() { return false };
 
-            h._onconnect = h.onconnect;
-            h.onconnect = async function() {
-                assert.equal(h.state, Hummingbird.STATE.CONNECTING);
-                h._onconnect();
+                h._onconnect = h.onconnect;
+                h.onconnect = async function() {
+                    assert.equal(h.state, Hummingbird.STATE.CONNECTING);
+                    h._onconnect();
 
-                setTimeout(function() {
-                    h.isuptodate = function() { return true };
-                }, 250);
+                    setTimeout(function() {
+                        h.isuptodate = function() { return true };
+                    }, 250);
 
-                let interval = setInterval(function() {
-                    if (h.state === Hummingbird.STATE.CRAWLING) {
-                        clearInterval(interval);
-                        assert.equal(h.state, Hummingbird.STATE.CRAWLING);
-                        h.disconnect();
-                        done();
-                    }
-                }, 100);
-            };
+                    let interval = setInterval(function() {
+                        if (h.state === Hummingbird.STATE.CRAWLING) {
+                            clearInterval(interval);
+                            assert.equal(h.state, Hummingbird.STATE.CRAWLING);
+                            h.disconnect();
+                            done();
+                        }
+                    }, 100);
+                };
+            })();
         });
 
         it("disconnects", function(done) {
-            const h = new Hummingbird(config);
-            h.connect();
-            delete h.peer.promises.connect;
+            (async function() {
+                const h = new Hummingbird(config);
+                await h.connect();
 
-            h._onconnect = h.onconnect;
-            h.onconnect = function() {
-                assert.equal(h.state, Hummingbird.STATE.CONNECTING);
-                h._onconnect();
-                h.disconnect();
-            };
-
-            h._ondisconnect = h.ondisconnect;
-            h.ondisconnect = function() {
-                h._ondisconnect();
-                assert.equal(h.state, Hummingbird.STATE.DISCONNECTED);
                 h.isuptodate = function() { return true };
-                done();
-            };
+
+                h._onconnect = h.onconnect;
+                h.onconnect = function() {
+                    assert.equal(h.state, Hummingbird.STATE.CONNECTING);
+                    h._onconnect();
+                    h.disconnect();
+                };
+
+                h._ondisconnect = h.ondisconnect;
+                h.ondisconnect = function() {
+                    h._ondisconnect();
+                    assert.equal(h.state, Hummingbird.STATE.DISCONNECTED);
+                    h.isuptodate = function() { return true };
+                    done();
+                };
+            })();
         });
 
         it("switches to listening after crawl", function(done) {
@@ -107,109 +113,69 @@ describe("hummingbird", function() {
         this.timeout(15000);
         this.slow(5000);
 
-        it("fetches blocks", function(done) {
+        it("fetches and listens for blocks", function(done) {
             const h = new Hummingbird(config);
+            const txs = [];
+            h.ontransaction = async function(tx, finished) {
+                txs.push(tx);
+                assert.equal(tx.blk.i, 608811);
+                if (finished) {
+                    assert(txs.length, 2072);
+                    assert(txs[0].tx.h, "2086e72ce325fe377e18ee2c57f1ab5350457116a153d204354262cb131a10bc");
+                    assert(txs[2071].tx.h, "5090fb68d0f5b445050dc3eb5a58fbbca00fc433c4067fb439257a4922b6a9fe");
+
+                    assert(txs[0].blk);
+                    assert.equal(txs[0].blk.i, 608811);
+                    assert.equal(txs[0].blk.t, 1573765073);
+                    assert.equal(txs[0].blk.h, "0000000000000000034a9d2b738eecce3e9afd8a07bc89ca03023c99f366708f");
+
+                    h.disconnect();
+                    done();
+                }
+            }
+
             h.onconnect = async function() {
-                const block = await h.fetch(608811);
-                assert(block.header.height, 608811);
-                assert(block.txs.length, 2072);
-                assert(block.txs[0].tx.h, "2086e72ce325fe377e18ee2c57f1ab5350457116a153d204354262cb131a10bc");
-                assert(block.txs[2071].tx.h, "5090fb68d0f5b445050dc3eb5a58fbbca00fc433c4067fb439257a4922b6a9fe");
-
-                assert(block.txs[0].blk);
-                assert.equal(block.txs[0].blk.i, 608811);
-                assert.equal(block.txs[0].blk.t, 1573765073);
-                assert.equal(block.txs[0].blk.h, "0000000000000000034a9d2b738eecce3e9afd8a07bc89ca03023c99f366708f");
-
-                h.disconnect();
-                done();
-            };
-            h.connect();
-        });
-
-        it("listens for blocks", function(done) {
-            this.timeout(25000);
-            this.slow(10000);
-
-            const h = new Hummingbird(config);
-            h.isuptodate = function() { return true };
-            h._onblock = h.onblock;
-            h.onblock = function(block) {
-                h._onblock(block);
-                assert.equal(block.txs.length, 2072);
-                assert.equal(block.txs[0].tx.h, "2086e72ce325fe377e18ee2c57f1ab5350457116a153d204354262cb131a10bc");
-                assert.equal(block.txs[2071].tx.h, "5090fb68d0f5b445050dc3eb5a58fbbca00fc433c4067fb439257a4922b6a9fe");
-                assert.equal(block.header.height, 608811);
-
-                assert(block.txs[0].blk);
-                assert.equal(block.txs[0].blk.i, 608811);
-                assert.equal(block.txs[0].blk.t, 1573765073);
-                assert.equal(block.txs[0].blk.h, "0000000000000000034a9d2b738eecce3e9afd8a07bc89ca03023c99f366708f");
-
-                h.disconnect();
-                done();
-            }
-
-            h.ready = async function() {
-                const block = await h.fetch(608811);
-                assert.equal(block.header.height, 608811);
-                assert.equal(block.txs.length, 2072);
-                assert.equal(block.txs[0].tx.h, "2086e72ce325fe377e18ee2c57f1ab5350457116a153d204354262cb131a10bc");
-                assert.equal(block.txs[2071].tx.h, "5090fb68d0f5b445050dc3eb5a58fbbca00fc433c4067fb439257a4922b6a9fe");
+                await h.fetch(608811);
             };
 
             h.connect();
         });
 
-        it("validates number of txs in block before processing", function(done) {
-            this.timeout(25000);
-            this.slow(10000);
-
-            const h = new Hummingbird(config);
-            h.isuptodate = function() { return true };
-            h._onblock = h.onblock;
-            h.onblock = function(block) {
-                h._onblock(block);
-                assert.equal(block.txs.length, 1490);
-                h.disconnect();
-                done();
-            }
-
-            h.onrealtime = async function() {
-                const block = await h.fetch(615411);
-                const txs = block.txs;
-                txs.pop();
-                block.txs = txs;
-                await h.handleblock(block);
-            };
-
-            h.connect();
-        });
-
-        it.skip("processes very large blocks", function(done) {
+        it("processes very large blocks", function(done) {
             this.timeout(999999);
 
             const h = new Hummingbird(config);
-            h.onconnect = async function() {
-                console.log("1");
-                const block = await h.fetch(635142);
-                console.log("2");
-                console.log("BLOCK", block);
-                /*
-                assert(block.header.height, 608811);
-                assert(block.txs.length, 2072);
-                assert(block.txs[0].tx.h, "2086e72ce325fe377e18ee2c57f1ab5350457116a153d204354262cb131a10bc");
-                assert(block.txs[2071].tx.h, "5090fb68d0f5b445050dc3eb5a58fbbca00fc433c4067fb439257a4922b6a9fe");
+            let i = 0;
+            h.ontransaction = async function(tx, finished) {
+                i += 1;
 
-                assert(block.txs[0].blk);
-                assert.equal(block.txs[0].blk.i, 608811);
-                assert.equal(block.txs[0].blk.t, 1573765073);
-                assert.equal(block.txs[0].blk.h, "0000000000000000034a9d2b738eecce3e9afd8a07bc89ca03023c99f366708f");
+                if (i === 1) {
+                    assert.equal(tx.blk.i, 635141);
+                    assert.equal(tx.tx.h, "aa207724fa48bd774927da9a958b6b52f83c5f3c480387c05bf6d356cfd55814");
+                }
 
-                h.disconnect();
-                done();
-                */
+                if (i === 1324314) {
+                    assert.equal(tx.blk.i, 635141);
+                    assert.equal(tx.tx.h, "a362f119863907e06d8efab5d71848543d5a90aaf240552bc55ee89d68bb4320");
+                }
+
+
+                if ((i % 10000) === 0) {
+                    console.log("i", i);
+                }
+
+                if (finished) {
+                    assert.equal(i, 1324314);
+
+                    h.disconnect();
+                    done();
+                }
             };
+
+            h.onconnect = async function() {
+                await h.fetch(635141);
+            };
+
             h.connect();
         });
     });
@@ -244,8 +210,6 @@ describe("hummingbird", function() {
 
         it("automatically reconnect", function(done) {
             const h = new Hummingbird(config);
-            h.connect();
-            assert.equal(h.state, Hummingbird.STATE.CONNECTING);
 
             let times = 0;
             h.isuptodate = function() { return false };
@@ -268,6 +232,9 @@ describe("hummingbird", function() {
                 }
 
             };
+
+            h.connect();
+            assert.equal(h.state, Hummingbird.STATE.CONNECTING);
         });
 
         it("listens for mempool txs", function(done) {
@@ -275,7 +242,7 @@ describe("hummingbird", function() {
             const h = new Hummingbird(config);
             h.isuptodate = function() { return true };
             let complete = false;
-            h.onmempool = function(tx) {
+            h.ontransaction = function(tx) {
                 if (!complete) {
                     complete = true;
                     assert(tx);
@@ -290,34 +257,21 @@ describe("hummingbird", function() {
         });
 
         it("refreshes mempool", function(done) {
-            this.timeout(10000);
-            // minimum needs to be low enough that normal mempool txs don't fill it up within timeout
-            // but low enough that mempool still has a shot even after a block
-            let minimum = 50, num = 0;
-
+            this.timeout(20000);
             const h = new Hummingbird(config);
             h.isuptodate = function() { return true };
             let complete = false;
-            h.onmempool = function(tx) {
-                assert(tx);
-                assert(tx.tx.h);
-                assert(tx.in);
-                assert(tx.out);
-
-                num += 1;
-                if (!complete && num >= minimum) {
+            h.ontransaction = function(tx) {
+                if (!complete) {
                     complete = true;
+                    assert(tx);
+                    assert(tx.tx.h);
+                    assert(tx.in);
+                    assert(tx.out);
                     h.disconnect();
                     done();
                 }
             }
-
-            h._onconnect = h.onconnect;
-            h.onconnect = function() {
-                h._onconnect();
-                h.fetchmempool();
-            }
-
             h.connect();
         });
     });
