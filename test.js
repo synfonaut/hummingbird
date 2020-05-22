@@ -15,7 +15,7 @@ const config = {
 describe("hummingbird", function() {
     this.slow(1500);
 
-    describe.only("state", function() {
+    describe("state", function() {
         it("initialize disconnected", function() {
             const h = new Hummingbird(config);
             assert.equal(h.state, Hummingbird.STATE.DISCONNECTED);
@@ -285,7 +285,7 @@ describe("hummingbird", function() {
 
             assert.equal(tx.tx.h, "3e410bfba6732687369b3e961030c8bf88793be99bb297247bef64fec141a04e");
             const h = new Hummingbird(config);
-            await h.onmempool(tx);
+            await h.ontransaction(tx);
         });
 
         it("single state machine", async function() {
@@ -305,7 +305,7 @@ describe("hummingbird", function() {
             const h = new Hummingbird(Object.assign({}, config, { state_machines: [new StateMachine()] }));
 
             assert.equal(num, 0);
-            await h.onmempool(tx);
+            await h.ontransaction(tx);
             assert.equal(num, 1);
 
         });
@@ -330,7 +330,7 @@ describe("hummingbird", function() {
             ]}));
 
             assert.equal(num, 0);
-            await h.onmempool(tx);
+            await h.ontransaction(tx);
             assert.equal(num, 2);
 
         });
@@ -363,16 +363,16 @@ describe("hummingbird", function() {
             ]}));
 
             assert.equal(num, 0);
-            await h.onmempool(tx);
-            await h.onmempool(tx);
-            await h.onmempool(tx);
-            await h.onmempool(tx);
-            await h.onmempool(tx);
-            await h.onmempool(tx);
-            await h.onmempool(tx);
-            await h.onmempool(tx);
-            await h.onmempool(tx);
-            await h.onmempool(tx);
+            await h.ontransaction(tx);
+            await h.ontransaction(tx);
+            await h.ontransaction(tx);
+            await h.ontransaction(tx);
+            await h.ontransaction(tx);
+            await h.ontransaction(tx);
+            await h.ontransaction(tx);
+            await h.ontransaction(tx);
+            await h.ontransaction(tx);
+            await h.ontransaction(tx);
             assert.equal(num, 100);
 
         });
@@ -396,7 +396,7 @@ describe("hummingbird", function() {
 
             assert.equal(num, 0);
             try {
-                await h.onmempool(tx);
+                await h.ontransaction(tx);
                 assert.fail("expected error");
             } catch (e) {
                 assert.equal(e.message, "bzz wrong");
@@ -413,10 +413,6 @@ describe("hummingbird", function() {
             let complete = false;
 
             class TestHummingbird extends Hummingbird {
-                async curr() {
-                    return curr;
-                }
-
                 async height() {
                     this.blockheight = 612568;
                     return this.blockheight;
@@ -434,21 +430,14 @@ describe("hummingbird", function() {
             }
 
             class StateMachine {
-                onmempool(tx) {
-                    if (processingBlock) {
-                        receivedTXDuringBlock = true;
-                    }
-                    return true;
-                }
-
                 ontransaction(tx) {
-                    //console.log("TX", tx.tx.h);
-                    return true;
-                }
-
-                ontransactions(txs, block) {
-                    curr = 612568;
-                    processingBlock = false;
+                    if (tx.blk) {
+                        processingBlock = false;
+                    } else {
+                        if (processingBlock) {
+                            receivedTXDuringBlock = true;
+                        }
+                    }
                     return true;
                 }
             }
@@ -476,10 +465,6 @@ describe("hummingbird", function() {
             let complete = false;
 
             class TestHummingbird extends Hummingbird {
-                async curr() {
-                    return curr;
-                }
-
                 async height() {
                     this.blockheight = 612568;
                     return this.blockheight;
@@ -487,28 +472,20 @@ describe("hummingbird", function() {
             }
 
             class StateMachine {
-                onmempool(tx) {
-                    if (processingBlock) {
-                        receivedTXDuringBlock = true;
+                ontransaction(tx) {
+                    if (!tx.header) {
+                        if (processingBlock) {
+                            receivedTXDuringBlock = true;
 
-                        if (!complete) {
-                            complete = true;
-                            assert(receivedTXDuringBlock);
-                            hum.reconnect = false;
-                            hum.disconnect();
-                            done();
+                            if (!complete) {
+                                complete = true;
+                                assert(receivedTXDuringBlock);
+                                hum.reconnect = false;
+                                hum.disconnect();
+                                done();
+                            }
                         }
                     }
-                    return true;
-                }
-
-                ontransaction(tx) {
-                    //console.log("TX", tx.tx.h);
-                    return true;
-                }
-
-                ontransactions(txs, block) {
-                    curr = 612568;
                     return true;
                 }
             }
