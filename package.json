@@ -1,6 +1,6 @@
 {
     "name": "hummingbird-bitcoin",
-    "version": "0.1.2",
+    "version": "1.0.0",
     "description": "A Real-time Bitcoin Application Framework",
     "main": "dist.js",
     "scripts": {
