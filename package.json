@@ -25,7 +25,7 @@
         "bsv": "1.5.3",
         "bsv-p2p": "0.0.3",
         "debug": "4.1.1",
-        "lodash": "4.17.15",
+        "lodash": "4.17.19",
         "mongodb": "3.3.4",
         "promise-queue": "2.2.5",
         "read-last-lines": "1.7.1",
